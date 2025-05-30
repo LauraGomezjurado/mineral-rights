@@ -1,0 +1,19 @@
+{
+  "tesseract": {
+    "tesseract_config": "--psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?()[]{}\"'-/ ",
+    "tesseract_cmd": "/usr/local/bin/tesseract"
+  },
+  "paddleocr": {
+    "use_angle_cls": true,
+    "lang": "en",
+    "show_log": false
+  },
+  "easyocr": {
+    "languages": ["en"],
+    "use_gpu": true
+  },
+  "benchmark_settings": {
+    "max_workers": 3,
+    "output_format": "json"
+  }
+} 
