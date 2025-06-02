@@ -1,0 +1,35 @@
+{
+  "input_file": "data/samples/reserv_deed_1.pdf",
+  "processing_time": 8.7,
+  "pipeline_steps": {
+    "ocr_extraction": {
+      "best_result": {
+        "tool": "trocr_printed",
+        "confidence": 0.92
+      }
+    },
+    "phrase_detection": {
+      "detected_phrases": [
+        {
+          "phrase": "excepting and reserving",
+          "confidence": 0.9
+        },
+        {
+          "phrase": "mineral rights herein reserved",
+          "confidence": 0.9
+        }
+      ]
+    },
+    "classification": {
+      "classification": "WITH_RESERVATIONS",
+      "confidence": 0.91,
+      "reasoning": "Document contains 2 clear reservation phrases indicating mineral rights are reserved by the grantor."
+    }
+  },
+  "final_output": {
+    "classification": "WITH_RESERVATIONS",
+    "confidence": 0.91,
+    "key_phrases_found": 2,
+    "reasoning": "Document contains clear mineral rights reservation language"
+  }
+} 
