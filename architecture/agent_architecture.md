@@ -1,65 +1,59 @@
+### **Step 1: Generate N Diverse Responses from the Language Model**
 
-###  **Step 1: Sample N contrastive responses from an LLM**
+* Prompt the language model **N times** with a non-zero temperature to produce **variation in responses**.
+* Each generated response should include:
 
-* Prompt your LLM N times with temperature > 0 to get *diverse outputs*.
-* Each response contains:
+  * A **binary classification**: for example, `1 = has reservations`, `0 = no reservations`.
+  * A **textual rationale or explanation** for the classification (optional but useful for feature extraction).
 
-  * A **classification** (e.g. "has reservations" = 1 or "no reservations" = 0)
-  * A **reasoning trace** (optional but useful for feature extraction)
+---
 
+### **Step 2: Process Each Sample Individually**
 
+#### → **Extract the Predicted Class (0 or 1)**
 
-###  **Step 2: For each sample**
+* Apply a simple rule or regular expression to classify the response based on key phrases (e.g., `"no reservation"` → 0, `"a concern was raised"` → 1).
 
-#### → **Get a classification** (0 or 1)
+#### → **Analyze the Justification**
 
+* Examine the rationale behind the classification to understand what triggered it:
 
-* Use regex/parsing rules (e.g. look for `"no reservation"` vs `"reservation noted"`).
+  * What specific phrases or terms suggested the classification?
+  * Does the reasoning rely on facts, speculation, or vague language?
 
+---
 
-#### → **Walk through the logic**
+### **Step 3: Score Each Response Using Lightweight Features**
 
-Highlight:
+To estimate the **confidence** of each classification, compute a score using a logistic regression model trained on simple, interpretable features:
 
-* Which phrases led the model to infer a reservation?
-* Did the model cite anything factual, speculative, or vague?
+| **Feature**                   | **Description**                                                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **F1. Sentence Count**        | Measures the number of sentences in the response. Longer outputs may reflect more careful reasoning.                 |
+| **F2. Trigger Word Presence** | Detects keywords like “concern,” “issue,” or “but” that are often associated with reservations.                      |
+| **F3. Lexical Consistency**   | Computes Jaccard similarity between the input and the output to assess how well the response stays on topic.         |
+| **F4. Format Validity**       | Checks if the output adheres to a consistent structure or format (e.g., begins with "Answer:" or ends with a label). |
+| **F5. Answer Certainty**      | Counts hedging expressions such as “might,” “probably,” or “unclear,” which suggest lower confidence.                |
+| **F6. Past Agreement**        | Measures how similar the current response is to previously seen high-confidence responses.                           |
 
-<!-- This is **qualitative** for interpretability, but you can make it **quantitative** with features.
+---
 
---- -->
+### **Step 4: Aggregate Votes Using Confidence Scores**
 
-### **→ Compute a Confidence Score via Logistic Regression**
-
- **7 lightweight feature ideas** adapted from RASC and tailored to a classification task:
-
-| Feature                       | Description                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------- |
-| **F1. Sentence Count**        | Longer reasoning is often more reliable.                                          |
-| **F2. Trigger Word Presence** | Does the output contain words like `"concern"`, `"but"`, `"issue"`? (for class 1) |
-| **F3. Lexical Consistency**   | Jaccard similarity between input and output — more overlap may mean coherence.    |
-| **F4. Format Validity**       | Did the LLM follow the requested output format (e.g., `"Answer: ..."`) correctly? |
-| **F5. Answer Certainty**      | Count of hedging words: *might*, *probably*, *unclear* → high = low confidence    |
-| **F6. Model Logit Gap**       | If you have access: gap between top 2 logits. Higher gap = higher confidence      |
-| **F7. Past Agreement**        | Similarity to previous high-confidence samples (semantic or lexical)              |
-
-
-<!-- --- -->
-
-### **→ Add Its Weighted Vote to a Running Total**
+For each response, add its predicted class to a running total, weighted by its confidence score:
 
 ```python
-# Example
 votes = {0: 0.0, 1: 0.0}
 votes[predicted_class] += confidence_score
 ```
 
-This builds a **soft voting ensemble**, where each sample’s weight is its confidence.
+This forms a **soft voting mechanism**, where more confident responses contribute more heavily to the final decision.
 
+---
 
+### **Step 5: Apply Early Stopping Based on Confidence**
 
-###  **Early Stopping Check**
-
-After each vote:
+After each new response is added, evaluate whether the decision can be made confidently:
 
 ```python
 total = sum(votes.values())
@@ -69,4 +63,5 @@ if votes[top_class] / total >= τ:
     return top_class
 ```
 
-
+* If the leading class accumulates a sufficient share of the total confidence (as defined by threshold $\tau$), the process stops and the classification is returned.
+* Otherwise, sampling continues until the threshold is met or a maximum sample limit is reached.
