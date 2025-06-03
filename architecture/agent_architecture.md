@@ -42,10 +42,10 @@ To estimate the **confidence** of each classification, compute a score using a l
 
 For each response, add its predicted class to a running total, weighted by its confidence score:
 
-```python
+<!-- ```python
 votes = {0: 0.0, 1: 0.0}
 votes[predicted_class] += confidence_score
-```
+``` -->
 
 This forms a **soft voting mechanism**, where more confident responses contribute more heavily to the final decision.
 
@@ -55,13 +55,13 @@ This forms a **soft voting mechanism**, where more confident responses contribut
 
 After each new response is added, evaluate whether the decision can be made confidently:
 
-```python
+<!-- ```python
 total = sum(votes.values())
 top_class = max(votes, key=votes.get)
 
 if votes[top_class] / total >= τ:
     return top_class
-```
+``` -->
 
 * If the leading class accumulates a sufficient share of the total confidence (as defined by threshold $\tau$), the process stops and the classification is returned.
 * Otherwise, sampling continues until the threshold is met or a maximum sample limit is reached.
