@@ -4,7 +4,7 @@ Test Accuracy Script
 ===================
 
 Test the classification accuracy on a small subset of documents.
-Now with chunk-by-chunk early stopping as the default method.
+chunk-by-chunk early stopping as the default method.
 """
 
 import json
