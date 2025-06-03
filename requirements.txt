@@ -1,3 +1,7 @@
+# AI and Machine Learning
+anthropic>=0.25.0
+scikit-learn>=1.3.0
+
 # Traditional OCR Libraries
 pytesseract>=3.10.1
 paddlepaddle>=2.5.0

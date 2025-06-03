@@ -1,0 +1,87 @@
+{
+  "document_name": "Marshall Co WV DB 82_173.pdf",
+  "document_path": "data/reservs/Marshall Co WV DB 82_173.pdf",
+  "folder_name": "reservs",
+  "expected_label": 1,
+  "predicted_label": 1,
+  "confidence": 1.0,
+  "correct_prediction": true,
+  "pages_processed": 2,
+  "total_pages_in_document": 3,
+  "efficiency_ratio": 0.6666666666666666,
+  "stopped_early": true,
+  "stopped_at_page": 2,
+  "samples_used": 3,
+  "ocr_text_length": 3826,
+  "processing_time": null,
+  "chunk_analysis": [
+    {
+      "page_number": 1,
+      "text_length": 1212,
+      "classification": 0,
+      "confidence": 1.0,
+      "votes": {
+        "0": 2.2200310191783443,
+        "1": 0.0
+      },
+      "samples_used": 3,
+      "early_stopped": true,
+      "page_text": "Here is the extracted text from the legal deed document (page 173):\n\nState of West Virginia, County of Marshall\nI, W.W. Fleming a Notary Public of the said County of Marshall do certify that James A.R. Banks, vice president, Banks of Moundsville, Marshall County, a corporation whose name is signed to the deed bearing date the 4th day of November 1901 have this day acknowledged the same before me in my said County.\nGiven under my hand this 4th day of November 1901.\nW.W. Fleming\nNotary Public\n\nWest Virginia, Marshall County, To-wit:\nI, E.M. Lewis, Clerk of the County Court of said County, do certify that the annexed writing bearing date the 4th day of November 1901 was presented to me in my office and thereupon admitted to record in Deed Book at this 4th day of November 1901.\nTeste:\nE.M. Lewis Clerk\n\nNorthern District. This Deed Made this 4th day of March 1901, between Gene A. Manor of Marshall County, West Virginia, party of the first part, and The Banks of Moundsville, Marshall County, a corporation party of the second part, for one consideration of one hundred dollars the receipt of which is hereby acknowledged...\n\n[Note: The text appears to continue but is cut off at the bottom of the image]"
+    },
+    {
+      "page_number": 2,
+      "text_length": 2614,
+      "classification": 1,
+      "confidence": 1.0,
+      "votes": {
+        "0": 0.0,
+        "1": 2.686363707487449
+      },
+      "samples_used": 3,
+      "early_stopped": true,
+      "page_text": "174\n\nhereby acknowledged the said party of the first part hath granted bargained sold and by these presents doth grant bargain sell convey and confirm unto the said party of the second part his heirs and assigns forever all the real estate situated in the County of Marshall & State of Virginia bounded and described as follows to wit Being Parcel No. 74 in Survey and plat of the land of Robert R. Reed et al and being more particularly one lot or stone corner on meadow run in County road thence with said line in southerly course to a stone corner thence in westerly course with said line to a stone corner thence northerly course with such line and northerly course to a stone near county road thence with county road in westerly course to a stone corner near Sam Rinkers thence in northerly course with fence or stone common corner to or by plat back of hill field thence up back line of hill field to next corner which thence up west line meadow land plank road down Mill Run to line thence with said line in easterly course to a white corner to Mill Run thence up northerly course following and over lot to white oak my [?] other right thence down said hill back to a stone near the same or near Lick Creek to the line runs near Survey No. 6 thence with said line to common ground line between Nathan Shepherd and Aaron Grallows the tract on the south side the Mason & Land thence down through mill Creek Bank and according to the division made by agreement thence with agreed line up Valley Run to a stone corner end of line in eastern side thence with said line as said in part as now entered of survey record thence with plat down with said line and line of common old share beginning\n\nFirst party reserves and exempts the Oil and Gas under the within described property known as Park land and a life tenement on the property and sufficient for his present use.\n\nWitness the following signature and seal this 20th day of May nineteen hundred and fourteen (1914) to the same undue regard of party of first part hand conveyed to Nathan Shepherd by Nathaniel Shepherd and wife by deed.\n\nThird part and hereby accepts fourth party doth hereby covenant with Resent party to the descended and hereby doth warrant generally the property hereby conveyed.\n\nWitness the following signature and seal\n\n[Signed] Nathan Shepherd [Seal]\n\nState of West Virginia County of Marshall to wit:\nI, T. Wagner, Notary Public of said county, do certify that Nathan Shepherd whose name is signed to the within writing bearing date on the 20th day of May in the year one thousand nine hundred and fourteen has this day acknowledged"
+    }
+  ],
+  "detailed_samples": [
+    {
+      "predicted_class": 1,
+      "reasoning": "This document contains an actual mineral rights reservation, specifically in this key passage:",
+      "confidence_score": 0.9043189186495831,
+      "features": {
+        "sentence_count": 0.9,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.10996563573883161,
+        "format_validity": 1.0,
+        "answer_certainty": 0.6666666666666667,
+        "past_agreement": 0.2201510123863065
+      }
+    },
+    {
+      "predicted_class": 1,
+      "reasoning": "This document contains an actual mineral rights reservation, specifically:",
+      "confidence_score": 0.9258366357081858,
+      "features": {
+        "sentence_count": 0.9,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.12681159420289856,
+        "format_validity": 1.0,
+        "answer_certainty": 0.6666666666666667,
+        "past_agreement": 0.2635803650153118
+      }
+    },
+    {
+      "predicted_class": 1,
+      "reasoning": "This document contains an actual mineral rights reservation, specifically:",
+      "confidence_score": 0.8562081531296802,
+      "features": {
+        "sentence_count": 0.9,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.12152777777777778,
+        "format_validity": 1.0,
+        "answer_certainty": 0.33333333333333337,
+        "past_agreement": 0.36553365938264076
+      }
+    }
+  ],
+  "ocr_text": "=== PAGE 1 ===\nHere is the extracted text from the legal deed document (page 173):\n\nState of West Virginia, County of Marshall\nI, W.W. Fleming a Notary Public of the said County of Marshall do certify that James A.R. Banks, vice president, Banks of Moundsville, Marshall County, a corporation whose name is signed to the deed bearing date the 4th day of November 1901 have this day acknowledged the same before me in my said County.\nGiven under my hand this 4th day of November 1901.\nW.W. Fleming\nNotary Public\n\nWest Virginia, Marshall County, To-wit:\nI, E.M. Lewis, Clerk of the County Court of said County, do certify that the annexed writing bearing date the 4th day of November 1901 was presented to me in my office and thereupon admitted to record in Deed Book at this 4th day of November 1901.\nTeste:\nE.M. Lewis Clerk\n\nNorthern District. This Deed Made this 4th day of March 1901, between Gene A. Manor of Marshall County, West Virginia, party of the first part, and The Banks of Moundsville, Marshall County, a corporation party of the second part, for one consideration of one hundred dollars the receipt of which is hereby acknowledged...\n\n[Note: The text appears to continue but is cut off at the bottom of the image]\n\n=== PAGE 2 ===\n174\n\nhereby acknowledged the said party of the first part hath granted bargained sold and by these presents doth grant bargain sell convey and confirm unto the said party of the second part his heirs and assigns forever all the real estate situated in the County of Marshall & State of Virginia bounded and described as follows to wit Being Parcel No. 74 in Survey and plat of the land of Robert R. Reed et al and being more particularly one lot or stone corner on meadow run in County road thence with said line in southerly course to a stone corner thence in westerly course with said line to a stone corner thence northerly course with such line and northerly course to a stone near county road thence with county road in westerly course to a stone corner near Sam Rinkers thence in northerly course with fence or stone common corner to or by plat back of hill field thence up back line of hill field to next corner which thence up west line meadow land plank road down Mill Run to line thence with said line in easterly course to a white corner to Mill Run thence up northerly course following and over lot to white oak my [?] other right thence down said hill back to a stone near the same or near Lick Creek to the line runs near Survey No. 6 thence with said line to common ground line between Nathan Shepherd and Aaron Grallows the tract on the south side the Mason & Land thence down through mill Creek Bank and according to the division made by agreement thence with agreed line up Valley Run to a stone corner end of line in eastern side thence with said line as said in part as now entered of survey record thence with plat down with said line and line of common old share beginning\n\nFirst party reserves and exempts the Oil and Gas under the within described property known as Park land and a life tenement on the property and sufficient for his present use.\n\nWitness the following signature and seal this 20th day of May nineteen hundred and fourteen (1914) to the same undue regard of party of first part hand conveyed to Nathan Shepherd by Nathaniel Shepherd and wife by deed.\n\nThird part and hereby accepts fourth party doth hereby covenant with Resent party to the descended and hereby doth warrant generally the property hereby conveyed.\n\nWitness the following signature and seal\n\n[Signed] Nathan Shepherd [Seal]\n\nState of West Virginia County of Marshall to wit:\nI, T. Wagner, Notary Public of said county, do certify that Nathan Shepherd whose name is signed to the within writing bearing date on the 20th day of May in the year one thousand nine hundred and fourteen has this day acknowledged"
+}

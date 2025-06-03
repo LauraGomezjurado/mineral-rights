@@ -24,7 +24,7 @@ def evaluate_full_dataset(data_dirs: List[str], output_dir: str = "full_evaluati
     
     print(" FULL DATASET EVALUATION")
     print("=" * 60)
-    print("Testing improved pipeline with:")
+    print("Testing pipeline with:")
     print("  * Chunk-by-chunk early stopping")
     print("  * Enhanced prompt for false positive reduction")
     print("  * 8K token limit per page")
@@ -37,8 +37,16 @@ def evaluate_full_dataset(data_dirs: List[str], output_dir: str = "full_evaluati
         if data_path.exists():
             pdfs = list(data_path.glob("*.pdf"))
             # Expected label: 1 if in 'reservs' folder, 0 if in 'no-reservs' folder
-            expected_label = 1 if 'reservs' in data_path.name else 0
-            pdf_files.extend([(pdf, expected_label, data_path.name) for pdf in pdfs])
+            # Fix: Check for exact folder name match, not substring
+            folder_name = data_path.name
+            if folder_name == 'reservs':
+                expected_label = 1
+            elif folder_name == 'no-reservs':
+                expected_label = 0
+            else:
+                print(f"Warning: Unknown folder '{folder_name}', skipping...")
+                continue
+            pdf_files.extend([(pdf, expected_label, folder_name) for pdf in pdfs])
     
     print(f" DATASET OVERVIEW:")
     print(f"  Total documents: {len(pdf_files)}")
@@ -351,7 +359,7 @@ OCR STATISTICS:
     
     print(report)
     
-    print(f"\n💾 COMPREHENSIVE RESULTS SAVED:")
+    print(f"\n COMPREHENSIVE RESULTS SAVED:")
     print(f"  - {output_dir}/comprehensive_evaluation_report.txt")
     print(f"  - {output_dir}/detailed_results.csv")
     print(f"  - {output_dir}/summary_statistics.json")
@@ -365,5 +373,5 @@ if __name__ == "__main__":
     ])
     
     print(f"\n EVALUATION COMPLETE!")
-    print(f"Processed {len(results)} documents with the improved pipeline.")
+    print(f"Processed {len(results)} documents with the pipeline.")
     print(f"Check the 'full_evaluation_results' directory for detailed analysis.") 
