@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import List, Dict
 import pandas as pd
+import numpy as np
 from document_classifier import DocumentProcessor
 
 def process_batch(data_dirs: List[str], output_dir: str = "batch_results"):
@@ -21,25 +22,36 @@ def process_batch(data_dirs: List[str], output_dir: str = "batch_results"):
     
     all_results = []
     
-    # Collect all PDF files
+    # Collect all PDF files with their expected labels
     pdf_files = []
     for data_dir in data_dirs:
         data_path = Path(data_dir)
         if data_path.exists():
             pdfs = list(data_path.glob("*.pdf"))
-            pdf_files.extend([(pdf, data_path.name) for pdf in pdfs])
+            # Expected label: 1 if in 'reservs' folder, 0 if in 'no-reservs' folder
+            expected_label = 1 if 'reservs' in data_path.name else 0
+            pdf_files.extend([(pdf, expected_label, data_path.name) for pdf in pdfs])
     
     print(f"Found {len(pdf_files)} documents to process")
+    print(f"Expected reservations: {sum(1 for _, label, _ in pdf_files if label == 1)}")
+    print(f"Expected no reservations: {sum(1 for _, label, _ in pdf_files if label == 0)}")
     
     # Process each document
-    for i, (pdf_path, expected_category) in enumerate(pdf_files, 1):
+    for i, (pdf_path, expected_label, folder_name) in enumerate(pdf_files, 1):
         print(f"\n[{i}/{len(pdf_files)}] Processing: {pdf_path.name}")
+        print(f"Expected: {expected_label} ({'Has Reservations' if expected_label == 1 else 'No Reservations'})")
         
         try:
             result = processor.process_document(str(pdf_path))
-            result['expected_category'] = expected_category
+            result['expected_label'] = expected_label
+            result['folder_name'] = folder_name
             result['document_name'] = pdf_path.name
+            result['correct_prediction'] = (result['classification'] == expected_label)
             all_results.append(result)
+            
+            print(f"Predicted: {result['classification']} ({'Has Reservations' if result['classification'] == 1 else 'No Reservations'})")
+            print(f"Confidence: {result['confidence']:.3f}")
+            print(f"Correct: {'✓' if result['correct_prediction'] else '✗'}")
             
             # Save individual result
             with open(output_path / f"{pdf_path.stem}_result.json", "w") as f:
@@ -49,85 +61,172 @@ def process_batch(data_dirs: List[str], output_dir: str = "batch_results"):
             print(f"Error processing {pdf_path.name}: {e}")
             continue
     
-    # Generate summary report
-    generate_summary_report(all_results, output_path)
+    # Generate comprehensive evaluation report
+    generate_evaluation_report(all_results, output_path)
     
     return all_results
 
-def generate_summary_report(results: List[Dict], output_dir: Path):
-    """Generate comprehensive summary report"""
+def generate_evaluation_report(results: List[Dict], output_dir: Path):
+    """Generate comprehensive evaluation report with accuracy metrics"""
+    
+    if not results:
+        print("No results to evaluate!")
+        return
     
     # Create summary DataFrame
     summary_data = []
     for result in results:
-        expected_class = 1 if result['expected_category'] == 'reservs' else 0
         summary_data.append({
             'document': result['document_name'],
-            'expected_class': expected_class,
-            'predicted_class': result['classification'],
+            'folder': result['folder_name'],
+            'expected_label': result['expected_label'],
+            'predicted_label': result['classification'],
             'confidence': result['confidence'],
             'samples_used': result['samples_used'],
             'early_stopped': result['early_stopped'],
-            'correct': expected_class == result['classification']
+            'correct': result['correct_prediction']
         })
     
     df = pd.DataFrame(summary_data)
     
-    # Calculate metrics
-    accuracy = df['correct'].mean()
-    precision_1 = df[(df['predicted_class'] == 1) & (df['correct'])].shape[0] / max(1, df[df['predicted_class'] == 1].shape[0])
-    recall_1 = df[(df['expected_class'] == 1) & (df['correct'])].shape[0] / max(1, df[df['expected_class'] == 1].shape[0])
-    f1_score = 2 * (precision_1 * recall_1) / max(0.001, precision_1 + recall_1)
+    # Calculate comprehensive metrics
+    total_docs = len(df)
+    correct_predictions = df['correct'].sum()
+    accuracy = correct_predictions / total_docs
     
-    # Generate report
+    # Confusion Matrix
+    true_positives = len(df[(df['expected_label'] == 1) & (df['predicted_label'] == 1)])
+    true_negatives = len(df[(df['expected_label'] == 0) & (df['predicted_label'] == 0)])
+    false_positives = len(df[(df['expected_label'] == 0) & (df['predicted_label'] == 1)])
+    false_negatives = len(df[(df['expected_label'] == 1) & (df['predicted_label'] == 0)])
+    
+    # Calculate metrics
+    precision = true_positives / max(1, true_positives + false_positives)
+    recall = true_positives / max(1, true_positives + false_negatives)
+    f1_score = 2 * (precision * recall) / max(0.001, precision + recall)
+    specificity = true_negatives / max(1, true_negatives + false_positives)
+    
+    # Generate detailed report
     report = f"""
-MINERAL RIGHTS CLASSIFICATION REPORT
-====================================
+MINERAL RIGHTS CLASSIFICATION EVALUATION REPORT
+==============================================
 
-Dataset Summary:
-- Total Documents: {len(results)}
-- Expected Reservations: {df[df['expected_class'] == 1].shape[0]}
-- Expected No Reservations: {df[df['expected_class'] == 0].shape[0]}
+DATASET SUMMARY:
+- Total Documents: {total_docs}
+- Expected Reservations (Class 1): {df[df['expected_label'] == 1].shape[0]}
+- Expected No Reservations (Class 0): {df[df['expected_label'] == 0].shape[0]}
 
-Performance Metrics:
-- Accuracy: {accuracy:.3f}
-- Precision (Reservations): {precision_1:.3f}
-- Recall (Reservations): {recall_1:.3f}
-- F1 Score: {f1_score:.3f}
+OVERALL ACCURACY: {accuracy:.3f} ({correct_predictions}/{total_docs})
 
-Confidence Statistics:
+CONFUSION MATRIX:
+                    Predicted
+                 No Res  Has Res
+Actual No Res      {true_negatives:3d}     {false_positives:3d}
+Actual Has Res     {false_negatives:3d}     {true_positives:3d}
+
+DETAILED METRICS:
+- Accuracy:     {accuracy:.3f}
+- Precision:    {precision:.3f} (of predicted reservations, how many were correct)
+- Recall:       {recall:.3f} (of actual reservations, how many were found)
+- Specificity:  {specificity:.3f} (of actual no-reservations, how many were correctly identified)
+- F1 Score:     {f1_score:.3f}
+
+CONFIDENCE STATISTICS:
 - Mean Confidence: {df['confidence'].mean():.3f}
 - Median Confidence: {df['confidence'].median():.3f}
 - Min Confidence: {df['confidence'].min():.3f}
 - Max Confidence: {df['confidence'].max():.3f}
 
-Sampling Statistics:
+SAMPLING STATISTICS:
 - Mean Samples Used: {df['samples_used'].mean():.1f}
 - Early Stop Rate: {df['early_stopped'].mean():.3f}
 
-Misclassifications:
+PERFORMANCE BY CLASS:
 """
     
-    # Add misclassification details
-    misclassified = df[~df['correct']]
-    for _, row in misclassified.iterrows():
-        report += f"- {row['document']}: Expected {row['expected_class']}, Got {row['predicted_class']} (conf: {row['confidence']:.3f})\n"
+    # Add class-specific performance
+    for class_label in [0, 1]:
+        class_name = "No Reservations" if class_label == 0 else "Has Reservations"
+        class_df = df[df['expected_label'] == class_label]
+        class_accuracy = class_df['correct'].mean() if len(class_df) > 0 else 0
+        class_confidence = class_df['confidence'].mean() if len(class_df) > 0 else 0
+        
+        report += f"\n{class_name} (Class {class_label}):\n"
+        report += f"  - Count: {len(class_df)}\n"
+        report += f"  - Accuracy: {class_accuracy:.3f}\n"
+        report += f"  - Avg Confidence: {class_confidence:.3f}\n"
+    
+    # Add misclassification analysis
+    report += f"\nMISCLASSIFICATIONS ({total_docs - correct_predictions} total):\n"
+    
+    # False Positives (predicted reservations but actually no reservations)
+    false_pos_df = df[(df['expected_label'] == 0) & (df['predicted_label'] == 1)]
+    if len(false_pos_df) > 0:
+        report += f"\nFalse Positives ({len(false_pos_df)}) - Predicted reservations but actually none:\n"
+        for _, row in false_pos_df.iterrows():
+            report += f"  - {row['document']} (conf: {row['confidence']:.3f})\n"
+    
+    # False Negatives (predicted no reservations but actually has reservations)
+    false_neg_df = df[(df['expected_label'] == 1) & (df['predicted_label'] == 0)]
+    if len(false_neg_df) > 0:
+        report += f"\nFalse Negatives ({len(false_neg_df)}) - Missed reservations:\n"
+        for _, row in false_neg_df.iterrows():
+            report += f"  - {row['document']} (conf: {row['confidence']:.3f})\n"
+    
+    # Confidence analysis for correct vs incorrect predictions
+    correct_df = df[df['correct'] == True]
+    incorrect_df = df[df['correct'] == False]
+    
+    if len(correct_df) > 0 and len(incorrect_df) > 0:
+        report += f"\nCONFIDENCE ANALYSIS:\n"
+        report += f"- Correct predictions avg confidence: {correct_df['confidence'].mean():.3f}\n"
+        report += f"- Incorrect predictions avg confidence: {incorrect_df['confidence'].mean():.3f}\n"
+        report += f"- Confidence difference: {correct_df['confidence'].mean() - incorrect_df['confidence'].mean():.3f}\n"
     
     # Save report
-    with open(output_dir / "classification_report.txt", "w") as f:
+    with open(output_dir / "evaluation_report.txt", "w") as f:
         f.write(report)
     
     # Save detailed CSV
-    df.to_csv(output_dir / "classification_summary.csv", index=False)
+    df.to_csv(output_dir / "detailed_results.csv", index=False)
+    
+    # Save summary statistics as JSON
+    summary_stats = {
+        'total_documents': total_docs,
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1_score,
+        'specificity': specificity,
+        'confusion_matrix': {
+            'true_positives': true_positives,
+            'true_negatives': true_negatives,
+            'false_positives': false_positives,
+            'false_negatives': false_negatives
+        },
+        'confidence_stats': {
+            'mean': df['confidence'].mean(),
+            'median': df['confidence'].median(),
+            'min': df['confidence'].min(),
+            'max': df['confidence'].max()
+        }
+    }
+    
+    with open(output_dir / "summary_stats.json", "w") as f:
+        json.dump(summary_stats, f, indent=2)
     
     print(report)
 
 if __name__ == "__main__":
-    # Process all documents
+    # Process all documents and evaluate accuracy
     results = process_batch([
         "data/reservs",
         "data/no-reservs"
     ])
     
     print(f"\nProcessed {len(results)} documents")
-    print("Results saved to batch_results/")
+    print("Detailed evaluation results saved to batch_results/")
+    print("Files created:")
+    print("  - evaluation_report.txt (detailed analysis)")
+    print("  - detailed_results.csv (per-document results)")
+    print("  - summary_stats.json (metrics summary)")

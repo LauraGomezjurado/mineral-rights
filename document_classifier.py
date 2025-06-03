@@ -23,7 +23,7 @@ from io import BytesIO
 import base64
 
 # Set API key
-os.environ['ANTHROPIC_API_KEY'] = "your-api-key-here"
+os.environ['ANTHROPIC_API_KEY'] = "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"
 
 @dataclass
 class ClassificationSample:
@@ -152,27 +152,49 @@ class MineralRightsClassifier:
     def create_classification_prompt(self, ocr_text: str) -> str:
         """Create the prompt template for classification"""
         
-        prompt = f"""You are a legal document analyst specializing in mineral rights. Your task is to classify whether a deed document contains mineral rights reservations.
+        prompt = f"""You are a legal document analyst specializing in mineral rights. Your task is to classify whether a deed document contains ACTUAL mineral rights reservations.
 
 DOCUMENT TEXT (from OCR):
 {ocr_text}
 
 CLASSIFICATION TASK:
-Analyze this document and determine if it contains any mineral rights reservations. Look for language that:
-- Reserves, excepts, or retains mineral rights
-- Mentions coal, oil, gas, or other mineral reservations  
-- References previous deeds that reserved minerals
-- Contains "subject to" clauses regarding minerals
+Analyze this document and determine if it contains any ACTUAL mineral rights reservations. 
+
+WHAT TO LOOK FOR (Positive indicators - classify as 1):
+- Explicit reservation language: "reserves", "excepts", "retains" mineral rights
+- Specific mineral mentions: "coal", "oil", "gas", "minerals", "mining rights"
+- Previous deed references that reserved minerals: "subject to mineral rights reserved in prior deed"
+- Fractional interests: "1/2 of mineral rights", "except 1/8 royalty interest"
+- Grantor retaining rights: "Grantor reserves all mineral rights"
+
+WHAT TO IGNORE (Not actual reservations - classify as 0):
+- Legal disclaimers and boilerplate text (even if containing words like "reserved", "excepted")
+- General warranty disclaimers
+- Title insurance notices
+- Recording acknowledgments
+- Notary statements
+- Standard legal language about instruments not enlarging/restricting rights
+- References to "rights otherwise created, transferred, excepted or reserved BY THIS INSTRUMENT" (this is boilerplate)
+
+CRITICAL DISTINCTION:
+- "Rights reserved BY THIS INSTRUMENT" = Actual reservation (classify as 1)
+- "Rights otherwise reserved by this instrument" in disclaimers = Boilerplate (classify as 0)
+- Look for SUBSTANTIVE reservation language, not just the presence of keywords
+
+EXAMPLES OF FALSE POSITIVES TO AVOID:
+- "This notice does not enlarge, restrict or modify any legal rights or estates otherwise created, transferred, excepted or reserved by this instrument"
+- "Subject to any restrictions, reservations, or easements of record"
+- "This deed is made subject to all matters of record"
 
 RESPONSE FORMAT:
 Answer: [0 or 1]
-Reasoning: [Provide detailed explanation of your classification decision, citing specific text from the document that supports your conclusion]
+Reasoning: [Provide detailed explanation citing specific text. If you see reservation-related words, explain whether they represent actual reservations or just boilerplate language]
 
 Where:
-- 0 = No mineral rights reservations found
-- 1 = Mineral rights reservations are present
+- 0 = No actual mineral rights reservations found (may contain boilerplate language)
+- 1 = Actual mineral rights reservations are present
 
-Be thorough in your analysis and cite specific phrases or clauses that support your decision."""
+Be very careful to distinguish between substantive mineral rights reservations and standard legal disclaimers that happen to use similar terminology."""
 
         return prompt
     
@@ -308,7 +330,7 @@ class DocumentProcessor:
         self.classifier = MineralRightsClassifier(api_key)
         
     def pdf_to_image(self, pdf_path: str) -> Image.Image:
-        """Convert PDF to high-quality image"""
+        """Convert PDF to high-quality image (first page only - legacy method)"""
         doc = fitz.open(pdf_path)
         page = doc.load_page(0)
         mat = fitz.Matrix(2, 2)  # 2x zoom for quality
@@ -317,15 +339,67 @@ class DocumentProcessor:
         doc.close()
         return Image.open(BytesIO(img_data))
     
-    def extract_text_with_claude(self, image: Image.Image) -> str:
-        """Extract text using Claude OCR"""
+    def pdf_to_images(self, pdf_path: str, max_pages: int = None) -> List[Image.Image]:
+        """Convert PDF pages to high-quality images
+        
+        Args:
+            pdf_path: Path to PDF file
+            max_pages: Maximum number of pages to process (None = all pages)
+        """
+        doc = fitz.open(pdf_path)
+        images = []
+        
+        total_pages = len(doc)
+        pages_to_process = min(total_pages, max_pages) if max_pages else total_pages
+        
+        print(f"Converting {pages_to_process} pages to images (total pages: {total_pages})")
+        
+        for page_num in range(pages_to_process):
+            page = doc.load_page(page_num)
+            mat = fitz.Matrix(2, 2)  # 2x zoom for quality
+            pix = page.get_pixmap(matrix=mat)
+            img_data = pix.tobytes("png")
+            images.append(Image.open(BytesIO(img_data)))
+            
+        doc.close()
+        return images
+    
+    def get_smart_pages(self, pdf_path: str, strategy: str = "first_few") -> List[int]:
+        """Smart page selection based on strategy
+        
+        Args:
+            pdf_path: Path to PDF file
+            strategy: "first_few", "first_and_last", "all", or "first_only"
+        """
+        doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        doc.close()
+        
+        if strategy == "first_only":
+            return [0] if total_pages > 0 else []
+        elif strategy == "first_few":
+            # First 3 pages (where mineral rights clauses typically appear)
+            return list(range(min(3, total_pages)))
+        elif strategy == "first_and_last":
+            # First 2 pages and last page
+            if total_pages <= 2:
+                return list(range(total_pages))
+            else:
+                return [0, 1, total_pages - 1]
+        elif strategy == "all":
+            return list(range(total_pages))
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}")
+    
+    def extract_text_with_claude(self, image: Image.Image, max_tokens: int = 8000) -> str:
+        """Extract text using Claude OCR with configurable token limit"""
         buffered = BytesIO()
         image.save(buffered, format="PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
         
         response = self.classifier.client.messages.create(
             model="claude-3-5-sonnet-20241022",
-            max_tokens=2000,
+            max_tokens=max_tokens,  # Configurable token limit
             messages=[{
                 "role": "user",
                 "content": [
@@ -339,7 +413,7 @@ class DocumentProcessor:
                     },
                     {
                         "type": "text",
-                        "text": "Extract ALL text from this legal deed document. Pay special attention to any mineral rights reservations. Format as clean text."
+                        "text": "Extract ALL text from this legal deed document. Pay special attention to any mineral rights reservations but do not make any judgment. Format as clean text. Avoid any commentary."
                     }
                 ]
             }]
@@ -347,18 +421,103 @@ class DocumentProcessor:
         
         return response.content[0].text
     
+    def extract_text_from_multiple_pages(self, images: List[Image.Image], 
+                                       max_tokens_per_page: int = 8000,
+                                       combine_method: str = "concatenate") -> str:
+        """Extract text from multiple page images
+        
+        Args:
+            images: List of page images
+            max_tokens_per_page: Token limit per page
+            combine_method: "concatenate" or "summarize"
+        """
+        all_text = []
+        
+        for i, image in enumerate(images, 1):
+            print(f"Extracting text from page {i}/{len(images)}...")
+            try:
+                page_text = self.extract_text_with_claude(image, max_tokens_per_page)
+                all_text.append(f"=== PAGE {i} ===\n{page_text}")
+            except Exception as e:
+                print(f"Error extracting text from page {i}: {e}")
+                all_text.append(f"=== PAGE {i} ===\n[ERROR: Could not extract text]")
+        
+        if combine_method == "concatenate":
+            return "\n\n".join(all_text)
+        elif combine_method == "summarize":
+            # For very long documents, we could implement summarization here
+            combined = "\n\n".join(all_text)
+            if len(combined) > 50000:  # If too long, truncate with warning
+                print("Warning: Combined text is very long, truncating...")
+                return combined[:50000] + "\n\n[TRUNCATED - Document continues...]"
+            return combined
+        else:
+            raise ValueError(f"Unknown combine_method: {combine_method}")
+    
     def process_document(self, pdf_path: str, max_samples: int = 10, 
-                        confidence_threshold: float = 0.7) -> Dict:
-        """Complete pipeline: PDF -> OCR -> Classification"""
+                        confidence_threshold: float = 0.7,
+                        page_strategy: str = "sequential_early_stop",
+                        max_pages: int = None,
+                        max_tokens_per_page: int = 8000,
+                        combine_method: str = "early_stop") -> Dict:
+        """Complete pipeline: PDF -> OCR -> Classification with chunk-by-chunk early stopping
+        
+        Args:
+            pdf_path: Path to PDF file
+            max_samples: Maximum classification samples per chunk
+            confidence_threshold: Early stopping threshold for classification
+            page_strategy: "sequential_early_stop" (new default), "first_only", "first_few", "first_and_last", "all"
+            max_pages: Maximum pages to process (overrides strategy if set)
+            max_tokens_per_page: Token limit per page for OCR
+            combine_method: "early_stop" (new default), "concatenate", "summarize"
+        """
         
         print(f"Processing: {pdf_path}")
+        print(f"Page strategy: {page_strategy}")
+        print(f"Max tokens per page: {max_tokens_per_page}")
         
-        # Step 1: Convert PDF to image
-        image = self.pdf_to_image(pdf_path)
+        # Use sequential early stopping by default
+        if page_strategy == "sequential_early_stop" or combine_method == "early_stop":
+            return self._process_with_early_stopping(
+                pdf_path, max_samples, confidence_threshold, max_tokens_per_page, max_pages
+            )
         
-        # Step 2: Extract text with Claude OCR
+        # Legacy processing for other strategies
+        # Step 1: Determine which pages to process
+        if max_pages is not None:
+            # Use max_pages override
+            images = self.pdf_to_images(pdf_path, max_pages)
+        else:
+            # Use smart page selection
+            page_numbers = self.get_smart_pages(pdf_path, page_strategy)
+            print(f"Selected pages: {[p+1 for p in page_numbers]}")  # Convert to 1-indexed for display
+            
+            if page_strategy == "first_only":
+                # Use legacy single-page method for backward compatibility
+                image = self.pdf_to_image(pdf_path)
+                images = [image]
+            else:
+                # Process selected pages
+                doc = fitz.open(pdf_path)
+                images = []
+                for page_num in page_numbers:
+                    page = doc.load_page(page_num)
+                    mat = fitz.Matrix(2, 2)
+                    pix = page.get_pixmap(matrix=mat)
+                    img_data = pix.tobytes("png")
+                    images.append(Image.open(BytesIO(img_data)))
+                doc.close()
+        
+        # Step 2: Extract text from all selected pages
         print("Extracting text with Claude OCR...")
-        ocr_text = self.extract_text_with_claude(image)
+        if len(images) == 1:
+            ocr_text = self.extract_text_with_claude(images[0], max_tokens_per_page)
+        else:
+            ocr_text = self.extract_text_from_multiple_pages(
+                images, max_tokens_per_page, combine_method
+            )
+        
+        print(f"Extracted text length: {len(ocr_text)} characters")
         
         # Step 3: Classify with self-consistent sampling
         print("Classifying document...")
@@ -368,12 +527,18 @@ class DocumentProcessor:
         
         return {
             'document_path': pdf_path,
+            'pages_processed': len(images),
+            'page_strategy': page_strategy,
+            'max_tokens_per_page': max_tokens_per_page,
             'ocr_text': ocr_text,
+            'ocr_text_length': len(ocr_text),
             'classification': classification_result.predicted_class,
             'confidence': classification_result.confidence,
             'votes': classification_result.votes,
             'samples_used': classification_result.samples_used,
             'early_stopped': classification_result.early_stopped,
+            'chunk_analysis': [],  # Empty for legacy mode
+            'stopped_at_chunk': None,
             'detailed_samples': [
                 {
                     'predicted_class': s.predicted_class,
@@ -383,6 +548,134 @@ class DocumentProcessor:
                 }
                 for s in classification_result.all_samples
             ]
+        }
+    
+    def _process_with_early_stopping(self, pdf_path: str, max_samples: int, 
+                                   confidence_threshold: float, max_tokens_per_page: int,
+                                   max_pages: int = None) -> Dict:
+        """Process document chunk by chunk with early stopping when reservations are found"""
+        
+        print("Using chunk-by-chunk early stopping analysis")
+        
+        # Open PDF and get total pages
+        doc = fitz.open(pdf_path)
+        total_pages = len(doc)
+        pages_to_process = min(total_pages, max_pages) if max_pages else total_pages
+        
+        print(f"Document has {total_pages} pages, will process up to {pages_to_process} if needed")
+        
+        chunk_analysis = []
+        all_ocr_text = []
+        stopped_at_chunk = None
+        
+        # Process page by page with early stopping
+        for page_num in range(pages_to_process):
+            current_page = page_num + 1
+            print(f"\n--- PROCESSING CHUNK {current_page}/{pages_to_process} ---")
+            
+            # Convert current page to image
+            page = doc.load_page(page_num)
+            mat = fitz.Matrix(2, 2)  # 2x zoom for quality
+            pix = page.get_pixmap(matrix=mat)
+            img_data = pix.tobytes("png")
+            image = Image.open(BytesIO(img_data))
+            
+            # Extract text from current page
+            print(f"Extracting text from page {current_page}...")
+            try:
+                page_text = self.extract_text_with_claude(image, max_tokens_per_page)
+                all_ocr_text.append(f"=== PAGE {current_page} ===\n{page_text}")
+                print(f"Extracted {len(page_text)} characters from page {current_page}")
+            except Exception as e:
+                print(f"Error extracting text from page {current_page}: {e}")
+                page_text = f"[ERROR: Could not extract text from page {current_page}]"
+                all_ocr_text.append(f"=== PAGE {current_page} ===\n{page_text}")
+                continue
+            
+            # Classify current chunk
+            print(f"Analyzing page {current_page} for mineral rights reservations...")
+            classification_result = self.classifier.classify_document(
+                page_text, max_samples, confidence_threshold
+            )
+            
+            chunk_info = {
+                'page_number': current_page,
+                'text_length': len(page_text),
+                'classification': classification_result.predicted_class,
+                'confidence': classification_result.confidence,
+                'votes': classification_result.votes,
+                'samples_used': classification_result.samples_used,
+                'early_stopped': classification_result.early_stopped,
+                'page_text': page_text
+            }
+            chunk_analysis.append(chunk_info)
+            
+            print(f"Page {current_page} analysis:")
+            print(f"  Classification: {classification_result.predicted_class} ({'Has Reservations' if classification_result.predicted_class == 1 else 'No Reservations'})")
+            print(f"  Confidence: {classification_result.confidence:.3f}")
+            print(f"  Samples used: {classification_result.samples_used}")
+            
+            # EARLY STOPPING: If reservations found, stop here!
+            if classification_result.predicted_class == 1:
+                print(f"🎯 RESERVATIONS FOUND in page {current_page}! Stopping analysis here.")
+                stopped_at_chunk = current_page
+                doc.close()
+                
+                return {
+                    'document_path': pdf_path,
+                    'pages_processed': current_page,
+                    'page_strategy': "sequential_early_stop",
+                    'max_tokens_per_page': max_tokens_per_page,
+                    'ocr_text': "\n\n".join(all_ocr_text),
+                    'ocr_text_length': sum(len(chunk['page_text']) for chunk in chunk_analysis),
+                    'classification': 1,  # Found reservations
+                    'confidence': classification_result.confidence,
+                    'votes': classification_result.votes,
+                    'samples_used': classification_result.samples_used,
+                    'early_stopped': True,  # Stopped early due to finding reservations
+                    'chunk_analysis': chunk_analysis,
+                    'stopped_at_chunk': stopped_at_chunk,
+                    'total_pages_in_document': total_pages,
+                    'detailed_samples': [
+                        {
+                            'predicted_class': s.predicted_class,
+                            'reasoning': s.reasoning,
+                            'confidence_score': s.confidence_score,
+                            'features': s.features
+                        }
+                        for s in classification_result.all_samples
+                    ]
+                }
+            else:
+                print(f"No reservations found in page {current_page}, continuing to next page...")
+        
+        doc.close()
+        
+        # If we get here, no reservations were found in any page
+        print(f"\n✅ ANALYSIS COMPLETE: No reservations found in any of the {pages_to_process} pages")
+        
+        # For final classification when no reservations found, use the last page's result
+        final_result = chunk_analysis[-1] if chunk_analysis else {
+            'classification': 0, 'confidence': 1.0, 'votes': {0: 1.0, 1: 0.0}, 
+            'samples_used': 0, 'early_stopped': False
+        }
+        
+        return {
+            'document_path': pdf_path,
+            'pages_processed': pages_to_process,
+            'page_strategy': "sequential_early_stop",
+            'max_tokens_per_page': max_tokens_per_page,
+            'ocr_text': "\n\n".join(all_ocr_text),
+            'ocr_text_length': sum(len(chunk['page_text']) for chunk in chunk_analysis),
+            'classification': 0,  # No reservations found
+            'confidence': final_result['confidence'],
+            'votes': final_result['votes'],
+            'samples_used': sum(chunk['samples_used'] for chunk in chunk_analysis),
+            'early_stopped': False,  # Processed all pages
+            'chunk_analysis': chunk_analysis,
+            'stopped_at_chunk': None,  # Didn't stop early
+            'total_pages_in_document': total_pages,
+            'detailed_samples': []  # Could aggregate all samples if needed
         }
 
 def main():
