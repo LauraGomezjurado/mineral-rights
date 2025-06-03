@@ -1,0 +1,74 @@
+{
+  "document_name": "Allegheny DB 2470_179 - 4.23.2025.pdf",
+  "document_path": "data/reservs/Allegheny DB 2470_179 - 4.23.2025.pdf",
+  "folder_name": "reservs",
+  "expected_label": 1,
+  "predicted_label": 1,
+  "confidence": 1.0,
+  "correct_prediction": true,
+  "pages_processed": 1,
+  "total_pages_in_document": 2,
+  "efficiency_ratio": 0.5,
+  "stopped_early": true,
+  "stopped_at_page": 1,
+  "samples_used": 3,
+  "ocr_text_length": 3712,
+  "processing_time": null,
+  "chunk_analysis": [
+    {
+      "page_number": 1,
+      "text_length": 3712,
+      "classification": 1,
+      "confidence": 1.0,
+      "votes": {
+        "0": 0.0,
+        "1": 2.9679422884379525
+      },
+      "samples_used": 3,
+      "early_stopped": true,
+      "page_text": "ALLEGHENY COUNTY PENNSYLVANIA DEED BOOK VOLUME 2470 179\n\nIndenture to be their act and deed, to the end that it may be recorded as such.\nWITNESS my hand and official seal.\nMabel A. Hazlett, Notary Public. (N. P. Seal)\nMy com. expires Feb. 26, 1933.\n\nCERTIFICATE OF RESIDENCE\nI, Frank X. Ciescielski, do hereby certify that my precise residence is Harwick, Pa.\nWITNESS my hand this 16th day of May, 1932.\nFrancis X. McCulloch,\nAtty. for Frank X. Ciescielski, et ux.\n\nRegistered in Allegheny County, June 6, 1932.\nNo. 13901 - Recorded June 6, 1932. Time 10:36 A.M.\nWritten by McCormick; Compared by [signatures]\n\nTHIS INDENTURE\nMAE E. JONES\nTO\nORA R. PITTS, ET UX.\n\nMADE the sixteenth day of September in the year of our Lord one thousand nine hundred and thirty-one (1931). Between MAE E. JONES, widow, (being the widow of Homer W. Jones, deceased), of Jefferson Township, Allegheny County, Pennsylvania, party of the first part and ORA R. PITTS and IRENE A. PITTS, his wife, of Dravosburg, Allegheny County, Pennsylvania, parties of the second part;\n\nWITNESSETH, that the said party of the first part, in consideration of One ($1.00) Dollar, and other good and valuable considerations, to her paid by the said parties of the second part, does grant, bargain, sell and convey unto the said parties of the second part, their heirs and assigns:\n\nALL that certain tract or piece of land situate partly in Union Township, in the County of Washington, and State of Pennsylvania, and partly in Jefferson Township, in County of Allegheny, and State aforesaid, bounded and described as follows, to-wit:\n\n[Detailed property description with measurements follows]\n\nThirty-one (131) acres, and One Hundred and Thirty-one (131) perches.\n\nTHIS conveyance is made under and subject to that certain oil and gas lease covering the above described land as now held and owned by Carnegie Natural Gas Company. And party of the first part excepts and reserves to herself, her heirs, executors, administrators, and assigns, forever, out of and from the force and effect of this conveyance all the rents, royalties, income, and profit which are or may arise and accrue by virtue of the aforesaid oil and gas lease. And in the event the said Carnegie Natural Gas Company, its successors or assigns, should at any time hereafter cancel or surrender said oil and gas lease covering the above described land, then, in such event, all the oil and gas in and under the above described land, together with all the rights drilled and gas wells of said lease, shall revert to and become the property of the party of the first part, her heirs, executors, administrators, and assigns, in fee simple and absolutely, together with such rights and privileges, in the above described land which may be necessary and required in any and all operations for installing and operating for oil and gas in said premises as fully and completely and to the same extent as set forth in said written oil and gas lease held by the said Carnegie Natural Gas Company aforesaid in the said land. It is the full intent and purpose of this conveyance to make a severance of the oil and gas in and under said land from the land, and to except and reserve the same, subject to the rights of the Carnegie Natural Gas Company as aforesaid, unto the party of the first part, her heirs, executors, administrators, and assigns, forever.\n\n[Additional terms regarding pipe line rights and mortgage details follow]\n\nWITH the appurtenances: TO HAVE AND TO HOLD the same unto and for the use of said parties of the second part, their heirs and assigns forever, subject, however, to the exceptions, reservations, conditions, and stipulations hereinabove mentioned and referred to."
+    }
+  ],
+  "detailed_samples": [
+    {
+      "predicted_class": 1,
+      "reasoning": "This deed contains an actual, explicit mineral rights reservation, specifically related to oil and gas rights. Here are the key elements that make this a clear mineral rights reservation:",
+      "confidence_score": 0.9845999693237447,
+      "features": {
+        "sentence_count": 1.0,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.2125340599455041,
+        "format_validity": 1.0,
+        "answer_certainty": 1.0,
+        "past_agreement": 0.17583553356216414
+      }
+    },
+    {
+      "predicted_class": 1,
+      "reasoning": "This deed contains clear and explicit mineral rights reservations, specifically related to oil and gas rights. Here are the key elements that make this a definitive mineral rights reservation:",
+      "confidence_score": 0.991216263927122,
+      "features": {
+        "sentence_count": 1.0,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.20967741935483872,
+        "format_validity": 1.0,
+        "answer_certainty": 1.0,
+        "past_agreement": 0.29877387729622573
+      }
+    },
+    {
+      "predicted_class": 1,
+      "reasoning": "This deed contains actual and explicit mineral rights reservations, specifically related to oil and gas rights. Here are the key elements that make this a clear mineral rights reservation:",
+      "confidence_score": 0.992126055187086,
+      "features": {
+        "sentence_count": 1.0,
+        "trigger_word_presence": 0.0,
+        "lexical_consistency": 0.2,
+        "format_validity": 1.0,
+        "answer_certainty": 1.0,
+        "past_agreement": 0.3310228460920069
+      }
+    }
+  ],
+  "ocr_text": "=== PAGE 1 ===\nALLEGHENY COUNTY PENNSYLVANIA DEED BOOK VOLUME 2470 179\n\nIndenture to be their act and deed, to the end that it may be recorded as such.\nWITNESS my hand and official seal.\nMabel A. Hazlett, Notary Public. (N. P. Seal)\nMy com. expires Feb. 26, 1933.\n\nCERTIFICATE OF RESIDENCE\nI, Frank X. Ciescielski, do hereby certify that my precise residence is Harwick, Pa.\nWITNESS my hand this 16th day of May, 1932.\nFrancis X. McCulloch,\nAtty. for Frank X. Ciescielski, et ux.\n\nRegistered in Allegheny County, June 6, 1932.\nNo. 13901 - Recorded June 6, 1932. Time 10:36 A.M.\nWritten by McCormick; Compared by [signatures]\n\nTHIS INDENTURE\nMAE E. JONES\nTO\nORA R. PITTS, ET UX.\n\nMADE the sixteenth day of September in the year of our Lord one thousand nine hundred and thirty-one (1931). Between MAE E. JONES, widow, (being the widow of Homer W. Jones, deceased), of Jefferson Township, Allegheny County, Pennsylvania, party of the first part and ORA R. PITTS and IRENE A. PITTS, his wife, of Dravosburg, Allegheny County, Pennsylvania, parties of the second part;\n\nWITNESSETH, that the said party of the first part, in consideration of One ($1.00) Dollar, and other good and valuable considerations, to her paid by the said parties of the second part, does grant, bargain, sell and convey unto the said parties of the second part, their heirs and assigns:\n\nALL that certain tract or piece of land situate partly in Union Township, in the County of Washington, and State of Pennsylvania, and partly in Jefferson Township, in County of Allegheny, and State aforesaid, bounded and described as follows, to-wit:\n\n[Detailed property description with measurements follows]\n\nThirty-one (131) acres, and One Hundred and Thirty-one (131) perches.\n\nTHIS conveyance is made under and subject to that certain oil and gas lease covering the above described land as now held and owned by Carnegie Natural Gas Company. And party of the first part excepts and reserves to herself, her heirs, executors, administrators, and assigns, forever, out of and from the force and effect of this conveyance all the rents, royalties, income, and profit which are or may arise and accrue by virtue of the aforesaid oil and gas lease. And in the event the said Carnegie Natural Gas Company, its successors or assigns, should at any time hereafter cancel or surrender said oil and gas lease covering the above described land, then, in such event, all the oil and gas in and under the above described land, together with all the rights drilled and gas wells of said lease, shall revert to and become the property of the party of the first part, her heirs, executors, administrators, and assigns, in fee simple and absolutely, together with such rights and privileges, in the above described land which may be necessary and required in any and all operations for installing and operating for oil and gas in said premises as fully and completely and to the same extent as set forth in said written oil and gas lease held by the said Carnegie Natural Gas Company aforesaid in the said land. It is the full intent and purpose of this conveyance to make a severance of the oil and gas in and under said land from the land, and to except and reserve the same, subject to the rights of the Carnegie Natural Gas Company as aforesaid, unto the party of the first part, her heirs, executors, administrators, and assigns, forever.\n\n[Additional terms regarding pipe line rights and mortgage details follow]\n\nWITH the appurtenances: TO HAVE AND TO HOLD the same unto and for the use of said parties of the second part, their heirs and assigns forever, subject, however, to the exceptions, reservations, conditions, and stipulations hereinabove mentioned and referred to."
+}
