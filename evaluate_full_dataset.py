@@ -327,30 +327,30 @@ OCR STATISTICS:
             'avg_time_per_document': total_time / len(results)
         },
         'accuracy_metrics': {
-            'overall_accuracy': accuracy,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1_score,
-            'specificity': specificity
+            'overall_accuracy': float(accuracy),
+            'precision': float(precision),
+            'recall': float(recall),
+            'f1_score': float(f1_score),
+            'specificity': float(specificity)
         },
         'confusion_matrix': {
-            'true_positives': true_positives,
-            'true_negatives': true_negatives,
-            'false_positives': false_positives,
-            'false_negatives': false_negatives
+            'true_positives': int(true_positives),
+            'true_negatives': int(true_negatives),
+            'false_positives': int(false_positives),
+            'false_negatives': int(false_negatives)
         },
         'efficiency_metrics': {
-            'average_efficiency': avg_efficiency,
-            'early_stops': early_stops,
-            'early_stop_rate': early_stop_rate,
-            'avg_efficiency_reservations': avg_efficiency_reservations,
-            'avg_efficiency_no_reservations': avg_efficiency_no_reservations
+            'average_efficiency': float(avg_efficiency),
+            'early_stops': int(early_stops),
+            'early_stop_rate': float(early_stop_rate),
+            'avg_efficiency_reservations': float(avg_efficiency_reservations),
+            'avg_efficiency_no_reservations': float(avg_efficiency_no_reservations)
         },
         'confidence_stats': {
-            'mean': df['confidence'].mean(),
-            'median': df['confidence'].median(),
-            'min': df['confidence'].min(),
-            'max': df['confidence'].max()
+            'mean': float(df['confidence'].mean()),
+            'median': float(df['confidence'].median()),
+            'min': float(df['confidence'].min()),
+            'max': float(df['confidence'].max())
         }
     }
     

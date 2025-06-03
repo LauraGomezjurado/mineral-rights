@@ -22,7 +22,7 @@
       "confidence": 1.0,
       "votes": {
         "0": 0.0,
-        "1": 2.9706280680925587
+        "1": 2.9713938987506436
       },
       "samples_used": 3,
       "early_stopped": true,
@@ -33,40 +33,40 @@
     {
       "predicted_class": 1,
       "reasoning": "This deed contains clear and explicit mineral rights reservations. Specifically:",
-      "confidence_score": 0.9857036139793067,
+      "confidence_score": 0.9862850794274457,
       "features": {
         "sentence_count": 1.0,
         "trigger_word_presence": 0.0,
-        "lexical_consistency": 0.1586021505376344,
+        "lexical_consistency": 0.1544502617801047,
         "format_validity": 1.0,
         "answer_certainty": 1.0,
-        "past_agreement": 0.2414243602235094
+        "past_agreement": 0.2541605470144343
       }
     },
     {
       "predicted_class": 1,
       "reasoning": "This deed contains clear and explicit mineral rights reservations. Specifically:",
-      "confidence_score": 0.9914085208920285,
+      "confidence_score": 0.9910656211016884,
       "features": {
         "sentence_count": 1.0,
         "trigger_word_presence": 0.0,
-        "lexical_consistency": 0.1565934065934066,
+        "lexical_consistency": 0.16180371352785147,
         "format_validity": 1.0,
         "answer_certainty": 1.0,
-        "past_agreement": 0.3523264153483662
+        "past_agreement": 0.33917374676615364
       }
     },
     {
       "predicted_class": 1,
-      "reasoning": "This deed contains clear and explicit mineral rights reservations, specifically:",
-      "confidence_score": 0.9935159332212236,
+      "reasoning": "This deed contains clear and explicit mineral rights reservations. Specifically:",
+      "confidence_score": 0.9940431982215097,
       "features": {
-        "sentence_count": 0.9,
+        "sentence_count": 1.0,
         "trigger_word_presence": 0.0,
-        "lexical_consistency": 0.1553133514986376,
+        "lexical_consistency": 0.1554959785522788,
         "format_validity": 1.0,
         "answer_certainty": 1.0,
-        "past_agreement": 0.5144812645573275
+        "past_agreement": 0.43144977373833104
       }
     }
   ],

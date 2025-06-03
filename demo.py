@@ -253,7 +253,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python demo.py <pdf_path> [output_dir]")
         print("\nExample documents to try:")
-        print("  python demo.py 'data/reservs/Washington DB 405_547.pdf'")
+        print("  python demo.py 'data/reservs/Washington DB 475_646 - 4.23.2025.pdf'")
         print("  python demo.py 'data/no-reservs/Butler DB 1895_80 - 4.23.2025.pdf'")
         print("  python demo.py 'data/reservs/Indiana Co. PA DB 550_322.pdf'")
         return
