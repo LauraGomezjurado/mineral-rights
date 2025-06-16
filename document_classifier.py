@@ -192,11 +192,8 @@ class MineralRightsClassifier:
             raise ValueError("ANTHROPIC_API_KEY must be provided either as parameter or environment variable")
         
         try:
-            self.client = anthropic.Anthropic(
-                api_key=api_key,
-                timeout=60.0,  # 60 second timeout
-                max_retries=3   # Retry failed requests
-            )
+            # Use basic client initialization for better compatibility
+            self.client = anthropic.Anthropic(api_key=api_key)
             # Test the client with a simple call
             self._test_client()
         except Exception as e:

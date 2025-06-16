@@ -33,10 +33,17 @@ def init_processor():
     global processor
     if processor is None:
         try:
+            print("🔧 Initializing document processor...")
             processor = DocumentProcessor()
             print("✅ Document processor initialized successfully")
+        except ValueError as e:
+            print(f"❌ Configuration error: {e}")
+            raise
         except Exception as e:
             print(f"❌ Error initializing processor: {e}")
+            # Try to provide more helpful error message
+            if "proxies" in str(e):
+                print("💡 This appears to be an Anthropic library version issue")
             raise
 
 def allowed_file(filename):
