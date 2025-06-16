@@ -22,8 +22,8 @@ from PIL import Image
 from io import BytesIO
 import base64
 
-# Set API key
-os.environ['ANTHROPIC_API_KEY'] = "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"
+# Remove hardcoded API key - use environment variable only
+# os.environ['ANTHROPIC_API_KEY'] = "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"
 
 @dataclass
 class ClassificationSample:
@@ -184,10 +184,39 @@ class MineralRightsClassifier:
     """Main classification agent with self-consistent sampling"""
     
     def __init__(self, api_key: str = None):
-        self.client = anthropic.Anthropic(api_key=api_key)
+        # Get API key from parameter or environment
+        if api_key is None:
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+        
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY must be provided either as parameter or environment variable")
+        
+        try:
+            self.client = anthropic.Anthropic(
+                api_key=api_key,
+                timeout=60.0,  # 60 second timeout
+                max_retries=3   # Retry failed requests
+            )
+            # Test the client with a simple call
+            self._test_client()
+        except Exception as e:
+            raise ValueError(f"Failed to initialize Anthropic client: {e}")
+            
         self.confidence_scorer = ConfidenceScorer()
         self.past_high_confidence_responses = []
-        
+    
+    def _test_client(self):
+        """Test the Anthropic client with a simple call"""
+        try:
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Hello"}]
+            )
+            return True
+        except Exception as e:
+            raise ValueError(f"Client test failed: {e}")
+    
     def create_classification_prompt(self, ocr_text: str) -> str:
         """Create the prompt template for classification"""
         
@@ -276,44 +305,62 @@ Remember: Your goal is to confidently identify documents WITHOUT reservations. O
         
         prompt = self.create_classification_prompt(ocr_text)
         
-        try:
-            response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1000,
-                temperature=temperature,
-                messages=[{
-                    "role": "user", 
-                    "content": prompt
-                }]
-            )
-            
-            raw_response = response.content[0].text
-            predicted_class, reasoning = self.extract_classification(raw_response)
-            
-            if predicted_class is None:
-                return None
+        # Retry logic for network issues
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=1000,
+                    temperature=temperature,
+                    messages=[{
+                        "role": "user", 
+                        "content": prompt
+                    }]
+                )
                 
-            # Extract features for confidence scoring
-            features = self.confidence_scorer.extract_features(
-                raw_response, 
-                ocr_text, 
-                self.past_high_confidence_responses
-            )
-            
-            # Score confidence
-            confidence_score = self.confidence_scorer.score_confidence(features)
-            
-            return ClassificationSample(
-                predicted_class=predicted_class,
-                reasoning=reasoning,
-                confidence_score=confidence_score,
-                features=features,
-                raw_response=raw_response
-            )
-            
-        except Exception as e:
-            print(f"Error generating sample: {e}")
-            return None
+                raw_response = response.content[0].text
+                predicted_class, reasoning = self.extract_classification(raw_response)
+                
+                if predicted_class is None:
+                    print(f"Warning: Could not extract classification from response (attempt {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Brief pause before retry
+                        continue
+                    return None
+                    
+                # Extract features for confidence scoring
+                features = self.confidence_scorer.extract_features(
+                    raw_response, 
+                    ocr_text, 
+                    self.past_high_confidence_responses
+                )
+                
+                # Score confidence
+                confidence_score = self.confidence_scorer.score_confidence(features)
+                
+                return ClassificationSample(
+                    predicted_class=predicted_class,
+                    reasoning=reasoning,
+                    confidence_score=confidence_score,
+                    features=features,
+                    raw_response=raw_response
+                )
+                
+            except anthropic.APIError as e:
+                print(f"Anthropic API error (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                return None
+            except Exception as e:
+                print(f"Unexpected error generating sample (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                return None
+        
+        return None
     
     def classify_document(self, ocr_text: str, max_samples: int = 10, 
                          confidence_threshold: float = 0.7) -> ClassificationResult:
@@ -376,7 +423,12 @@ class DocumentProcessor:
     """Complete pipeline from PDF to classification"""
     
     def __init__(self, api_key: str = None):
-        self.classifier = MineralRightsClassifier(api_key)
+        try:
+            self.classifier = MineralRightsClassifier(api_key)
+            print("✅ Document processor initialized successfully")
+        except Exception as e:
+            print(f"❌ Failed to initialize document processor: {e}")
+            raise
         
     def pdf_to_image(self, pdf_path: str) -> Image.Image:
         """Convert PDF to high-quality image (first page only - legacy method)"""
@@ -446,29 +498,48 @@ class DocumentProcessor:
         image.save(buffered, format="PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
         
-        response = self.classifier.client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=max_tokens,  # Configurable token limit
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": img_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": "Extract ALL text from this legal deed document. Pay special attention to any mineral rights reservations but do not make any judgment. Format as clean text. Avoid any commentary."
-                    }
-                ]
-            }]
-        )
+        # Retry logic for network issues
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.classifier.client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=max_tokens,  # Configurable token limit
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": img_base64
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "Extract ALL text from this legal deed document. Pay special attention to any mineral rights reservations but do not make any judgment. Format as clean text. Avoid any commentary."
+                            }
+                        ]
+                    }]
+                )
+                
+                return response.content[0].text
+                
+            except anthropic.APIError as e:
+                print(f"Anthropic API error during OCR (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                    continue
+                raise Exception(f"OCR failed after {max_retries} attempts: {e}")
+            except Exception as e:
+                print(f"Unexpected error during OCR (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                raise Exception(f"OCR failed after {max_retries} attempts: {e}")
         
-        return response.content[0].text
+        raise Exception("OCR failed - should not reach here")
     
     def extract_text_from_multiple_pages(self, images: List[Image.Image], 
                                        max_tokens_per_page: int = 8000,
