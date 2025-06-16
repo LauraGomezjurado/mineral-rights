@@ -192,12 +192,37 @@ class MineralRightsClassifier:
             raise ValueError("ANTHROPIC_API_KEY must be provided either as parameter or environment variable")
         
         try:
-            # Use basic client initialization for better compatibility
-            self.client = anthropic.Anthropic(api_key=api_key)
+            # Try multiple initialization approaches for maximum compatibility
+            self.client = None
+            
+            # Method 1: Basic initialization (most compatible)
+            try:
+                self.client = anthropic.Anthropic(api_key=api_key)
+                print("✅ Anthropic client initialized with basic method")
+            except TypeError as e:
+                if "proxies" in str(e) or "timeout" in str(e) or "max_retries" in str(e):
+                    print(f"⚠️  Basic initialization failed due to parameter issue: {e}")
+                    # Method 2: Try with only api_key (for older versions)
+                    try:
+                        import anthropic
+                        self.client = anthropic.Anthropic(api_key=api_key)
+                        print("✅ Anthropic client initialized with fallback method")
+                    except Exception as e2:
+                        print(f"❌ Fallback initialization also failed: {e2}")
+                        raise ValueError(f"Failed to initialize Anthropic client with any method. Original error: {e}")
+                else:
+                    raise
+            
+            if self.client is None:
+                raise ValueError("Failed to initialize Anthropic client - no method succeeded")
+            
             # Test the client with a simple call
             self._test_client()
+            
         except Exception as e:
-            raise ValueError(f"Failed to initialize Anthropic client: {e}")
+            error_msg = f"Failed to initialize Anthropic client: {e}"
+            print(f"❌ {error_msg}")
+            raise ValueError(error_msg)
             
         self.confidence_scorer = ConfidenceScorer()
         self.past_high_confidence_responses = []
