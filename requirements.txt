@@ -1,5 +1,7 @@
-# AI and Machine Learning
+# AI and Machine Learning - EXACT VERSIONS FOR COMPATIBILITY
 anthropic==0.25.0
+
+# Core dependencies
 scikit-learn>=1.3.0
 
 # Web Framework
@@ -12,10 +14,10 @@ Werkzeug==3.0.3
 # paddleocr>=2.7.0
 # easyocr>=1.7.0
 
-# Transformer-based OCR
-torch>=2.0.0
-transformers>=4.30.0
-datasets>=2.12.0
+# Transformer-based OCR (optional - may cause conflicts)
+# torch>=2.0.0
+# transformers>=4.30.0
+# datasets>=2.12.0
 
 # PDF Processing
 pdf2image==1.17.0
