@@ -57,7 +57,10 @@ class ConfidenceScorer:
             'lexical_consistency',
             'format_validity',
             'answer_certainty',
-            'past_agreement'
+            'past_agreement',
+            'reservation_keyword_density',
+            'boilerplate_indicators',
+            'substantive_language_ratio'
         ]
         
     def extract_features(self, response: str, input_text: str, 
@@ -97,13 +100,44 @@ class ConfidenceScorer:
                     similarities.append(sim)
             past_agreement = np.mean(similarities) if similarities else 0.0
         
+        # NEW FEATURES FOR BETTER NO-RESERVATION DETECTION
+        
+        # Reservation keyword density (normalized)
+        reservation_keywords = ['reserves', 'excepts', 'retains', 'reserving', 'excepting', 
+                               'coal', 'oil', 'gas', 'minerals', 'mining']
+        response_lower = response.lower()
+        keyword_count = sum(1 for keyword in reservation_keywords if keyword in response_lower)
+        reservation_keyword_density = min(keyword_count / max(1, len(response.split()) / 50), 1.0)
+        
+        # Boilerplate indicators (high score = likely boilerplate language)
+        boilerplate_phrases = ['subject to', 'matters of record', 'restrictions of record',
+                              'does not enlarge', 'otherwise reserved', 'general warranty',
+                              'title insurance', 'recording acknowledgment']
+        boilerplate_count = sum(1 for phrase in boilerplate_phrases if phrase in response_lower)
+        boilerplate_indicators = min(boilerplate_count / 3.0, 1.0)
+        
+        # Substantive language ratio (specific vs general language)
+        substantive_terms = ['grantor reserves', 'excepting and reserving', 'unto grantor',
+                           'specifically reserved', 'fractional interest', 'royalty interest']
+        substantive_count = sum(1 for term in substantive_terms if term in response_lower)
+        general_terms = ['subject to', 'matters of', 'otherwise', 'general', 'standard']
+        general_count = sum(1 for term in general_terms if term in response_lower)
+        
+        if substantive_count + general_count > 0:
+            substantive_language_ratio = substantive_count / (substantive_count + general_count)
+        else:
+            substantive_language_ratio = 0.0
+        
         return {
             'sentence_count': min(sentence_count / 10.0, 1.0),  # Normalize
             'trigger_word_presence': min(trigger_presence / 3.0, 1.0),
             'lexical_consistency': lexical_consistency,
             'format_validity': format_validity,
             'answer_certainty': answer_certainty,
-            'past_agreement': past_agreement
+            'past_agreement': past_agreement,
+            'reservation_keyword_density': reservation_keyword_density,
+            'boilerplate_indicators': boilerplate_indicators,
+            'substantive_language_ratio': substantive_language_ratio
         }
     
     def train_initial_model(self):
@@ -112,16 +146,21 @@ class ConfidenceScorer:
         np.random.seed(42)
         n_samples = 1000
         
-        # High confidence samples (good features)
-        X_high = np.random.normal([0.7, 0.1, 0.8, 1.0, 0.9, 0.7], 0.1, (n_samples//2, 6))
-        y_high = np.ones(n_samples//2)
+        # High confidence samples (good features for NO reservations - Class 0)
+        # Features: [sentence_count, trigger_word_presence, lexical_consistency, format_validity, 
+        #           answer_certainty, past_agreement, reservation_keyword_density, 
+        #           boilerplate_indicators, substantive_language_ratio]
         
-        # Low confidence samples (poor features)  
-        X_low = np.random.normal([0.3, 0.8, 0.3, 0.0, 0.2, 0.3], 0.1, (n_samples//2, 6))
-        y_low = np.zeros(n_samples//2)
+        # Samples indicating NO reservations (confident 0 classification)
+        X_no_reservations = np.random.normal([0.6, 0.1, 0.7, 1.0, 0.9, 0.7, 0.1, 0.8, 0.1], 0.1, (n_samples//2, 9))
+        y_no_reservations = np.ones(n_samples//2)  # High confidence
         
-        X = np.vstack([X_high, X_low])
-        y = np.hstack([y_high, y_low])
+        # Samples indicating HAS reservations or uncertain (low confidence)
+        X_has_reservations = np.random.normal([0.4, 0.7, 0.4, 0.3, 0.3, 0.3, 0.8, 0.2, 0.8], 0.1, (n_samples//2, 9))
+        y_has_reservations = np.zeros(n_samples//2)  # Low confidence
+        
+        X = np.vstack([X_no_reservations, X_has_reservations])
+        y = np.hstack([y_no_reservations, y_has_reservations])
         
         # Clip to valid ranges
         X = np.clip(X, 0, 1)
@@ -152,49 +191,59 @@ class MineralRightsClassifier:
     def create_classification_prompt(self, ocr_text: str) -> str:
         """Create the prompt template for classification"""
         
-        prompt = f"""You are a legal document analyst specializing in mineral rights. Your task is to classify whether a deed document contains ACTUAL mineral rights reservations.
+        prompt = f"""You are a conservative legal document analyst specializing in mineral rights. Your primary task is to identify documents WITHOUT mineral rights reservations while being extremely cautious about false positives.
 
 DOCUMENT TEXT (from OCR):
 {ocr_text}
 
-CLASSIFICATION TASK:
-Analyze this document and determine if it contains any ACTUAL mineral rights reservations. 
+CLASSIFICATION APPROACH:
+Default assumption: This document has NO mineral rights reservations (classify as 0)
+Only classify as 1 if you find CLEAR, SUBSTANTIVE reservation language that cannot be boilerplate.
 
-WHAT TO LOOK FOR (Positive indicators - classify as 1):
-- Explicit reservation language: "reserves", "excepts", "retains" mineral rights
-- Specific mineral mentions: "coal", "oil", "gas", "minerals", "mining rights"
-- Previous deed references that reserved minerals: "subject to mineral rights reserved in prior deed"
-- Fractional interests: "1/2 of mineral rights", "except 1/8 royalty interest"
-- Grantor retaining rights: "Grantor reserves all mineral rights"
+STEP-BY-STEP ANALYSIS:
 
-WHAT TO IGNORE (Not actual reservations - classify as 0):
-- Legal disclaimers and boilerplate text (even if containing words like "reserved", "excepted")
-- General warranty disclaimers
-- Title insurance notices
-- Recording acknowledgments
-- Notary statements
-- Standard legal language about instruments not enlarging/restricting rights
-- References to "rights otherwise created, transferred, excepted or reserved BY THIS INSTRUMENT" (this is boilerplate)
+1. FIRST SCAN - Look for potential reservation keywords:
+   - "reserves", "excepts", "retains", "reserving", "excepting"
+   - "coal", "oil", "gas", "minerals", "mining rights"
+   - Fractional interests like "1/2", "except", royalty percentages
 
-CRITICAL DISTINCTION:
-- "Rights reserved BY THIS INSTRUMENT" = Actual reservation (classify as 1)
-- "Rights otherwise reserved by this instrument" in disclaimers = Boilerplate (classify as 0)
-- Look for SUBSTANTIVE reservation language, not just the presence of keywords
+2. SECOND ANALYSIS - For each keyword found, determine:
+   - Is this in a SUBSTANTIVE RESERVATION CLAUSE? (classify as 1)
+   - OR is this BOILERPLATE/DISCLAIMER text? (classify as 0)
 
-EXAMPLES OF FALSE POSITIVES TO AVOID:
-- "This notice does not enlarge, restrict or modify any legal rights or estates otherwise created, transferred, excepted or reserved by this instrument"
-- "Subject to any restrictions, reservations, or easements of record"
-- "This deed is made subject to all matters of record"
+STRONG EVIDENCE FOR RESERVATIONS (classify as 1):
+- "Grantor reserves all mineral rights"
+- "Excepting and reserving unto grantor all coal, oil and gas"
+- "Subject to mineral rights reserved in prior deed to [specific party]"
+- Specific fractional reservations: "reserving 1/2 of all mineral rights"
+- Named grantors retaining specific rights with operational details
+
+BOILERPLATE TO IGNORE (classify as 0):
+- "Subject to all restrictions, reservations, or easements of record"
+- "This deed does not enlarge, restrict or modify any legal rights"
+- "Subject to matters of record" (general language)
+- Recording acknowledgments, notary language, title disclaimers
+- General warranty language about prior instruments
+- "Rights otherwise reserved by this instrument" in disclaimers
+
+CRITICAL TEST:
+If you see reservation-related words, ask:
+- Does this ACTIVELY create a new reservation in THIS deed?
+- Or does it just reference potential existing matters/boilerplate?
+- Could a reasonable person conclude no new mineral rights are being reserved?
+
+CONSERVATIVE BIAS:
+When in doubt between 0 and 1, choose 0. It's better to miss an actual reservation than to create a false positive.
 
 RESPONSE FORMAT:
 Answer: [0 or 1]
-Reasoning: [Provide detailed explanation citing specific text. If you see reservation-related words, explain whether they represent actual reservations or just boilerplate language]
+Reasoning: [Explain your analysis step by step. If you found reservation keywords, explain why they are/aren't substantive reservations. Be specific about the language that led to your decision.]
 
 Where:
-- 0 = No actual mineral rights reservations found (may contain boilerplate language)
-- 1 = Actual mineral rights reservations are present
+- 0 = NO substantive mineral rights reservations (default assumption)
+- 1 = CLEAR, substantive mineral rights reservations present
 
-Be very careful to distinguish between substantive mineral rights reservations and standard legal disclaimers that happen to use similar terminology."""
+Remember: Your goal is to confidently identify documents WITHOUT reservations. Only classify as 1 when you're certain there's a substantive reservation."""
 
         return prompt
     

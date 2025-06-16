@@ -1,0 +1,60 @@
+
+🔍 OPTIMIZED NO-RESERVATIONS DETECTION EVALUATION REPORT
+========================================================
+
+🎯 PRIMARY GOAL: Maximize detection of documents WITHOUT reservations
+📊 SECONDARY GOAL: Acceptable performance on documents WITH reservations
+
+PERFORMANCE SUMMARY:
+==================
+📈 NO-RESERVATIONS ACCURACY: 0.667 (18/27)
+📈 RESERVATIONS ACCURACY: 0.154 (4/26)
+📈 OVERALL ACCURACY: 0.415 (22/53)
+
+KEY METRICS:
+===========
+🎯 SPECIFICITY (No-Reservations Detection): 0.667
+   - This is our PRIMARY metric - how well we identify docs WITHOUT reservations
+   - Target: > 0.90 (vs. current 0.667)
+
+⚖️  SENSITIVITY (Reservations Detection): 0.154
+   - This is SECONDARY - some false negatives are acceptable
+   - Current: 0.154
+
+CONFUSION MATRIX:
+================
+                    Predicted
+                 No Res  Has Res
+Actual No Res      18       9
+Actual Has Res     22       4
+
+IMPROVEMENT ANALYSIS:
+====================
+🔴 False Positives (Main Problem): 9
+   - Documents WITHOUT reservations wrongly classified as having them
+   - These are the critical errors we want to eliminate
+
+🟡 False Negatives (Acceptable): 22
+   - Documents WITH reservations that we missed
+   - Less critical for your use case
+
+PROCESSING EFFICIENCY:
+=====================
+⏱️  Total Time: 2651.6 seconds
+⏱️  Average per Document: 50.0 seconds
+📄 Average Pages Processed: 2.3
+🔄 Average Samples Used: 3.1
+
+RECOMMENDED NEXT STEPS:
+======================
+
+🔧 PRIORITY: Reduce 9 false positives
+   1. Analyze the 9 documents wrongly classified as having reservations
+   2. Identify common patterns in boilerplate language being misclassified
+   3. Enhance prompt with specific examples from these false positives
+   4. Consider raising confidence threshold for positive classifications
+
+📈 SPECIFICITY IMPROVEMENT NEEDED:
+   - Current: 0.667, Target: > 0.90
+   - Focus on conservative classification strategies
+   - Enhance boilerplate detection patterns
