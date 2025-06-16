@@ -8,8 +8,8 @@
 PERFORMANCE SUMMARY:
 ==================
 📈 NO-RESERVATIONS ACCURACY: 0.667 (18/27)
-📈 RESERVATIONS ACCURACY: 0.154 (4/26)
-📈 OVERALL ACCURACY: 0.415 (22/53)
+📈 RESERVATIONS ACCURACY: 0.923 (24/26)
+📈 OVERALL ACCURACY: 0.792 (42/53)
 
 KEY METRICS:
 ===========
@@ -17,16 +17,16 @@ KEY METRICS:
    - This is our PRIMARY metric - how well we identify docs WITHOUT reservations
    - Target: > 0.90 (vs. current 0.667)
 
-⚖️  SENSITIVITY (Reservations Detection): 0.154
+⚖️  SENSITIVITY (Reservations Detection): 0.923
    - This is SECONDARY - some false negatives are acceptable
-   - Current: 0.154
+   - Current: 0.923
 
 CONFUSION MATRIX:
 ================
                     Predicted
                  No Res  Has Res
 Actual No Res      18       9
-Actual Has Res     22       4
+Actual Has Res      2      24
 
 IMPROVEMENT ANALYSIS:
 ====================
@@ -34,16 +34,16 @@ IMPROVEMENT ANALYSIS:
    - Documents WITHOUT reservations wrongly classified as having them
    - These are the critical errors we want to eliminate
 
-🟡 False Negatives (Acceptable): 22
+🟡 False Negatives (Acceptable): 2
    - Documents WITH reservations that we missed
    - Less critical for your use case
 
 PROCESSING EFFICIENCY:
 =====================
-⏱️  Total Time: 2651.6 seconds
-⏱️  Average per Document: 50.0 seconds
-📄 Average Pages Processed: 2.3
-🔄 Average Samples Used: 3.1
+⏱️  Total Time: 4578.7 seconds
+⏱️  Average per Document: 86.4 seconds
+📄 Average Pages Processed: 1.9
+🔄 Average Samples Used: 4.5
 
 RECOMMENDED NEXT STEPS:
 ======================

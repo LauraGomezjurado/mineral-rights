@@ -204,7 +204,6 @@ class MineralRightsClassifier:
                     print(f"⚠️  Basic initialization failed due to parameter issue: {e}")
                     # Method 2: Try with only api_key (for older versions)
                     try:
-                        import anthropic
                         self.client = anthropic.Anthropic(api_key=api_key)
                         print("✅ Anthropic client initialized with fallback method")
                     except Exception as e2:
