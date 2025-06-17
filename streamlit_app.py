@@ -61,6 +61,10 @@ st.markdown("""
         text-align: center;
         position: relative;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
 
     @keyframes headerGradient {
@@ -87,6 +91,7 @@ st.markdown("""
         animation: bounce 2s ease-in-out infinite;
         position: relative;
         z-index: 2;
+        text-align: center;
     }
 
     @keyframes bounce {
@@ -103,6 +108,10 @@ st.markdown("""
         text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         position: relative;
         z-index: 2;
+        text-align: center;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .header-subtitle {
@@ -115,6 +124,8 @@ st.markdown("""
         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         position: relative;
         z-index: 2;
+        text-align: center;
+        width: 100%;
     }
 
     /* Content section */
