@@ -183,60 +183,25 @@ class ConfidenceScorer:
 class MineralRightsClassifier:
     """Main classification agent with self-consistent sampling"""
     
-    def __init__(self, api_key: str = None):
-        # Get API key from parameter or environment
-        if api_key is None:
-            api_key = os.getenv('ANTHROPIC_API_KEY')
-        
+    def __init__(self, api_key: str):
+        """Initialize the classifier with Anthropic API key."""
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY must be provided either as parameter or environment variable")
+            raise ValueError("Anthropic API key is required")
         
+        print("Initializing Anthropic client...")
         try:
-            # Try multiple initialization approaches for maximum compatibility
-            self.client = None
-            
-            # Method 1: Basic initialization (most compatible)
-            try:
-                self.client = anthropic.Anthropic(api_key=api_key)
-                print("✅ Anthropic client initialized with basic method")
-            except TypeError as e:
-                if "proxies" in str(e) or "timeout" in str(e) or "max_retries" in str(e):
-                    print(f"⚠️  Basic initialization failed due to parameter issue: {e}")
-                    # Method 2: Try with only api_key (for older versions)
-                    try:
-                        self.client = anthropic.Anthropic(api_key=api_key)
-                        print("✅ Anthropic client initialized with fallback method")
-                    except Exception as e2:
-                        print(f"❌ Fallback initialization also failed: {e2}")
-                        raise ValueError(f"Failed to initialize Anthropic client with any method. Original error: {e}")
-                else:
-                    raise
-            
-            if self.client is None:
-                raise ValueError("Failed to initialize Anthropic client - no method succeeded")
-            
-            # Test the client with a simple call
-            self._test_client()
-            
+            # Simple, standard initialization that works with anthropic 0.40.0
+            self.client = anthropic.Anthropic(api_key=api_key)
+            print("✓ Anthropic client initialized successfully")
         except Exception as e:
-            error_msg = f"Failed to initialize Anthropic client: {e}"
-            print(f"❌ {error_msg}")
-            raise ValueError(error_msg)
-            
+            print(f"✗ Failed to initialize Anthropic client: {e}")
+            raise ValueError(f"Failed to initialize Anthropic client: {e}")
+        
+        # Initialize other components
+        self.text_extractor = TextExtractor()
+        self.image_processor = ImageProcessor()
         self.confidence_scorer = ConfidenceScorer()
         self.past_high_confidence_responses = []
-    
-    def _test_client(self):
-        """Test the Anthropic client with a simple call"""
-        try:
-            response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Hello"}]
-            )
-            return True
-        except Exception as e:
-            raise ValueError(f"Client test failed: {e}")
     
     def create_classification_prompt(self, ocr_text: str) -> str:
         """Create the prompt template for classification"""
@@ -268,32 +233,48 @@ STRONG EVIDENCE FOR RESERVATIONS (classify as 1):
 - Specific fractional reservations: "reserving 1/2 of all mineral rights"
 - Named grantors retaining specific rights with operational details
 
-BOILERPLATE TO IGNORE (classify as 0):
+COMMON BOILERPLATE TO IGNORE (classify as 0):
 - "Subject to all restrictions, reservations, or easements of record"
 - "This deed does not enlarge, restrict or modify any legal rights"
 - "Subject to matters of record" (general language)
 - Recording acknowledgments, notary language, title disclaimers
 - General warranty language about prior instruments
 - "Rights otherwise reserved by this instrument" in disclaimers
+- "Subject to any and all restrictions, reservations, rights of way, easements"
+- "This conveyance is made subject to all matters of record"
+- "Grantee accepts subject to restrictions and reservations of record"
+- Standard recording language and acknowledgment clauses
+
+REGIONAL BOILERPLATE PATTERNS (IGNORE - classify as 0):
+Washington County patterns:
+- "Subject to restrictions and reservations appearing of record"
+- "This conveyance does not purport to convey any interest in coal, oil, gas or other minerals"
+- "Grantee takes subject to all matters appearing of record"
+
+Somerset County patterns:
+- "Subject to all easements, restrictions and reservations of record"
+- "This deed is made subject to matters of record affecting said premises"
 
 CRITICAL TEST:
 If you see reservation-related words, ask:
 - Does this ACTIVELY create a new reservation in THIS deed?
 - Or does it just reference potential existing matters/boilerplate?
 - Could a reasonable person conclude no new mineral rights are being reserved?
+- Is this language found in standard deed templates?
 
 CONSERVATIVE BIAS:
 When in doubt between 0 and 1, choose 0. It's better to miss an actual reservation than to create a false positive.
+Be especially skeptical of language that appears to be standard legal boilerplate.
 
 RESPONSE FORMAT:
 Answer: [0 or 1]
-Reasoning: [Explain your analysis step by step. If you found reservation keywords, explain why they are/aren't substantive reservations. Be specific about the language that led to your decision.]
+Reasoning: [Explain your analysis step by step. If you found reservation keywords, explain why they are/aren't substantive reservations. Be specific about the language that led to your decision. If you suspect boilerplate, explain why.]
 
 Where:
 - 0 = NO substantive mineral rights reservations (default assumption)
 - 1 = CLEAR, substantive mineral rights reservations present
 
-Remember: Your goal is to confidently identify documents WITHOUT reservations. Only classify as 1 when you're certain there's a substantive reservation."""
+Remember: Your goal is to confidently identify documents WITHOUT reservations. Only classify as 1 when you're certain there's a substantive reservation that goes beyond standard boilerplate language."""
 
         return prompt
     
@@ -413,15 +394,31 @@ Remember: Your goal is to confidently identify documents WITHOUT reservations. O
                 if len(self.past_high_confidence_responses) > 20:
                     self.past_high_confidence_responses.pop(0)
             
-            # Check early stopping condition
+            # ENHANCED EARLY STOPPING LOGIC TO PREVENT FALSE POSITIVES
             total_votes = sum(votes.values())
             if total_votes > 0:
                 leading_class = max(votes.keys(), key=lambda k: votes[k])
                 leading_proportion = votes[leading_class] / total_votes
                 
-                if leading_proportion >= confidence_threshold and i >= 2:  # Minimum 3 samples
-                    early_stopped = True
-                    break
+                # CRITICAL FIX: Different thresholds for different classifications
+                if leading_class == 1:  # Positive classification (has reservations)
+                    # Be MORE conservative for positive classifications
+                    required_confidence = 0.8  # Higher threshold for positive
+                    min_samples_positive = 5   # Minimum samples for positive classification
+                    
+                    if leading_proportion >= required_confidence and i >= min_samples_positive - 1:
+                        print(f"Early stopping: Positive classification with {leading_proportion:.3f} confidence after {i+1} samples")
+                        early_stopped = True
+                        break
+                else:  # Negative classification (no reservations)
+                    # Can be more lenient for negative classifications (our goal)
+                    required_confidence = confidence_threshold  # Use provided threshold
+                    min_samples_negative = 3  # Minimum samples for negative classification
+                    
+                    if leading_proportion >= required_confidence and i >= min_samples_negative - 1:
+                        print(f"Early stopping: Negative classification with {leading_proportion:.3f} confidence after {i+1} samples")
+                        early_stopped = True
+                        break
         
         # Determine final classification
         if sum(votes.values()) > 0:
