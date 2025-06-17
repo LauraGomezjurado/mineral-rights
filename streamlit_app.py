@@ -54,6 +54,7 @@ def initialize_processor():
         api_key = os.getenv('ANTHROPIC_API_KEY')
         if not api_key:
             st.error("❌ ANTHROPIC_API_KEY environment variable not set")
+            st.info("Please set your Anthropic API key in the Streamlit Cloud settings.")
             return False
         
         st.session_state.processor = DocumentProcessor(api_key=api_key)
@@ -65,6 +66,7 @@ def initialize_processor():
 
 def process_document(uploaded_file):
     """Process the uploaded document"""
+    tmp_path = None
     try:
         # Save uploaded file to temporary location
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
@@ -79,15 +81,17 @@ def process_document(uploaded_file):
                 confidence_threshold=0.7
             )
         
-        # Clean up temp file
-        os.unlink(tmp_path)
-        
         return result
         
     except Exception as e:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
         raise e
+    finally:
+        # Always clean up temp file
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass  # Ignore cleanup errors
 
 # Main app
 def main():
@@ -106,7 +110,7 @@ def main():
         if st.button("🔄 Retry Initialization"):
             st.session_state.processing_error = None
             st.session_state.processor = None
-            st.experimental_rerun()
+            st.rerun()
         return
     
     # Check if processor is ready
