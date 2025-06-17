@@ -166,8 +166,11 @@ def main():
                 with col1:
                     st.markdown("### 📈 Analysis Details")
                     st.write(f"**Samples analyzed:** {result['samples_used']}")
-                    st.write(f"**Processing time:** {result['processing_time']:.1f}s")
                     st.write(f"**Pages processed:** {result['pages_processed']}")
+                    if result.get('early_stopped'):
+                        st.write("**Early stopped:** Yes")
+                    if result.get('stopped_at_chunk'):
+                        st.write(f"**Stopped at page:** {result['stopped_at_chunk']}")
                 
                 with col2:
                     st.markdown("### 🗳️ Vote Distribution")
@@ -177,9 +180,9 @@ def main():
                         st.write(f"**{label}:** {vote_confidence:.1%}")
                 
                 # Show reasoning if available
-                if 'samples' in result and result['samples']:
+                if 'detailed_samples' in result and result['detailed_samples']:
                     with st.expander("🔍 Detailed Reasoning"):
-                        for i, sample in enumerate(result['samples'][:3]):  # Show top 3
+                        for i, sample in enumerate(result['detailed_samples'][:3]):  # Show top 3
                             st.markdown(f"**Sample {i+1} (Confidence: {sample['confidence_score']:.1%})**")
                             st.write(sample['reasoning'])
                             st.markdown("---")
