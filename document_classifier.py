@@ -198,8 +198,6 @@ class MineralRightsClassifier:
             raise ValueError(f"Failed to initialize Anthropic client: {e}")
         
         # Initialize other components
-        self.text_extractor = TextExtractor()
-        self.image_processor = ImageProcessor()
         self.confidence_scorer = ConfidenceScorer()
         self.past_high_confidence_responses = []
     
