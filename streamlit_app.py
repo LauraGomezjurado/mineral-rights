@@ -409,6 +409,23 @@ st.markdown("""
         padding: 50px 40px;
         text-align: center;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stFileUploader > div > div::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.08), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .stFileUploader > div > div:hover::before {
+        left: 100%;
     }
 
     .stFileUploader > div > div:hover {
@@ -416,6 +433,53 @@ st.markdown("""
         background: linear-gradient(135deg, #f0fff0 0%, #fafffe 100%);
         transform: translateY(-3px) scale(1.01);
         box-shadow: 0 15px 40px rgba(76, 175, 80, 0.15);
+    }
+
+    /* Style the file uploader label */
+    .stFileUploader label {
+        font-size: 1.5em !important;
+        color: #2e7d32 !important;
+        font-weight: 500 !important;
+        margin-bottom: 20px !important;
+    }
+
+    /* Add custom content to file uploader */
+    .stFileUploader > div > div::after {
+        content: '🔒 Secure    📊 50MB Max    ⚡ Fast Processing';
+        display: block;
+        margin-top: 15px;
+        font-size: 0.9em;
+        color: #66BB6A;
+        background: rgba(76, 175, 80, 0.1);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(76, 175, 80, 0.2);
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Style the browse files button */
+    .stFileUploader button {
+        background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%) !important;
+        color: white !important;
+        border: none !important;
+        padding: 12px 30px !important;
+        border-radius: 12px !important;
+        font-size: 1em !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3) !important;
+        margin-top: 20px !important;
+    }
+
+    .stFileUploader button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4) !important;
+        background: linear-gradient(135deg, #66BB6A 0%, #4CAF50 100%) !important;
     }
 
     /* Processing spinner */
@@ -626,25 +690,11 @@ def main():
     # Document Upload Section
     st.markdown('<h2 class="section-title">Document Upload</h2>', unsafe_allow_html=True)
     
-    # Custom upload area
-    st.markdown('''
-    <div class="upload-area">
-        <div class="upload-icon">📄</div>
-        <div class="upload-text">Upload your deed PDF here</div>
-        <div class="upload-subtext">
-            <span class="feature-badge">🔒 Secure</span>
-            <span class="feature-badge">📊 50MB Max</span>
-            <span class="feature-badge">⚡ Fast Processing</span>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
-    
-    # File uploader
+    # File uploader (we'll style this to integrate with our custom design)
     uploaded_file = st.file_uploader(
-        "Choose a PDF file",
+        "📄 Choose a PDF file",
         type=['pdf'],
-        help="Upload a legal document to analyze for mineral rights reservations",
-        label_visibility="collapsed"
+        help="Upload a legal document to analyze for mineral rights reservations"
     )
     
     if uploaded_file is not None:
