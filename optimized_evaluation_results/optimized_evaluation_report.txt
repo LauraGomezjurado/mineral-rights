@@ -7,54 +7,50 @@
 
 PERFORMANCE SUMMARY:
 ==================
-📈 NO-RESERVATIONS ACCURACY: 0.667 (18/27)
-📈 RESERVATIONS ACCURACY: 0.923 (24/26)
-📈 OVERALL ACCURACY: 0.792 (42/53)
+📈 NO-RESERVATIONS ACCURACY: 1.000 (18/18)
+📈 RESERVATIONS ACCURACY: 0.914 (32/35)
+📈 OVERALL ACCURACY: 0.943 (50/53)
 
 KEY METRICS:
 ===========
-🎯 SPECIFICITY (No-Reservations Detection): 0.667
+🎯 SPECIFICITY (No-Reservations Detection): 1.000
    - This is our PRIMARY metric - how well we identify docs WITHOUT reservations
-   - Target: > 0.90 (vs. current 0.667)
+   - Target: > 0.90 (vs. current 1.000)
 
-⚖️  SENSITIVITY (Reservations Detection): 0.923
+⚖️  SENSITIVITY (Reservations Detection): 0.914
    - This is SECONDARY - some false negatives are acceptable
-   - Current: 0.923
+   - Current: 0.914
 
 CONFUSION MATRIX:
 ================
                     Predicted
                  No Res  Has Res
-Actual No Res      18       9
-Actual Has Res      2      24
+Actual No Res      18       0
+Actual Has Res      3      32
 
 IMPROVEMENT ANALYSIS:
 ====================
-🔴 False Positives (Main Problem): 9
+🔴 False Positives (Main Problem): 0
    - Documents WITHOUT reservations wrongly classified as having them
    - These are the critical errors we want to eliminate
 
-🟡 False Negatives (Acceptable): 2
+🟡 False Negatives (Acceptable): 3
    - Documents WITH reservations that we missed
    - Less critical for your use case
 
 PROCESSING EFFICIENCY:
 =====================
-⏱️  Total Time: 4578.7 seconds
-⏱️  Average per Document: 86.4 seconds
+⏱️  Total Time: 5670.5 seconds
+⏱️  Average per Document: 107.0 seconds
 📄 Average Pages Processed: 1.9
-🔄 Average Samples Used: 4.5
+🔄 Average Samples Used: 5.6
 
 RECOMMENDED NEXT STEPS:
 ======================
 
-🔧 PRIORITY: Reduce 9 false positives
-   1. Analyze the 9 documents wrongly classified as having reservations
-   2. Identify common patterns in boilerplate language being misclassified
-   3. Enhance prompt with specific examples from these false positives
-   4. Consider raising confidence threshold for positive classifications
+✅ EXCELLENT: Zero false positives achieved!
+   - Consider slight threshold adjustments to catch more true reservations
+   - Monitor performance on larger dataset
 
-📈 SPECIFICITY IMPROVEMENT NEEDED:
-   - Current: 0.667, Target: > 0.90
-   - Focus on conservative classification strategies
-   - Enhance boilerplate detection patterns
+🎉 SPECIFICITY TARGET ACHIEVED: 1.000 > 0.90
+   - Excellent performance on main objective

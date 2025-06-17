@@ -722,55 +722,56 @@ def main():
                 confidence = result['confidence']
                 confidence_level, confidence_class = get_confidence_level(confidence)
                 
-                # Main result card
+                # Main result card using Streamlit components
                 result_icon = "⚠️" if classification == 1 else "✅"
                 result_title = "MINERAL RIGHTS RESERVATIONS DETECTED" if classification == 1 else "NO MINERAL RIGHTS RESERVATIONS DETECTED"
                 
-                st.markdown(f'''
-                <div class="result-card">
-                    <div class="result-header">
-                        <span class="result-icon">{result_icon}</span>
-                        <div class="result-title">{result_title}</div>
-                        <span class="confidence-badge {confidence_class}">
+                # Create result container
+                with st.container():
+                    st.markdown(f'<div class="result-card">', unsafe_allow_html=True)
+                    
+                    # Result header
+                    col1, col2, col3 = st.columns([1, 6, 2])
+                    with col1:
+                        st.markdown(f'<div class="result-icon">{result_icon}</div>', unsafe_allow_html=True)
+                    with col2:
+                        st.markdown(f'<div class="result-title">{result_title}</div>', unsafe_allow_html=True)
+                    with col3:
+                        st.markdown(f'''
+                        <div class="confidence-badge {confidence_class}">
                             {confidence_level} Confidence<br>
                             <small>{confidence:.1%}</small>
-                        </span>
-                    </div>
+                        </div>
+                        ''', unsafe_allow_html=True)
                     
-                    <div class="explanation">
-                        {'This document contains language that may reserve mineral rights to the grantor or previous parties.' if classification == 1 else 'This document appears to be a clean transfer without mineral rights reservations.'}
-                    </div>
+                    # Explanation
+                    explanation_text = 'This document contains language that may reserve mineral rights to the grantor or previous parties.' if classification == 1 else 'This document appears to be a clean transfer without mineral rights reservations.'
+                    st.markdown(f'<div class="explanation">{explanation_text}</div>', unsafe_allow_html=True)
                     
+                    # Recommendation
+                    recommendation_text = get_recommendation(classification, confidence)
+                    st.markdown(f'''
                     <div class="recommendation">
                         <strong>🎯 Professional Recommendation</strong>
-                        <div class="recommendation-text">{get_recommendation(classification, confidence)}</div>
+                        <div class="recommendation-text">{recommendation_text}</div>
                     </div>
+                    ''', unsafe_allow_html=True)
                     
-                    <div class="details">
-                        <h4>📊 Analysis Details</h4>
-                        <div class="detail-item">
-                            <span class="detail-label">📄 Document Name:</span>
-                            <span class="detail-value">{uploaded_file.name}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">📑 Pages Analyzed:</span>
-                            <span class="detail-value">{result['pages_processed']}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">🤖 AI Samples Generated:</span>
-                            <span class="detail-value">{result['samples_used']}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">📝 Text Extracted:</span>
-                            <span class="detail-value">{len(result['ocr_text']):,} chars</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">⚡ Early Termination:</span>
-                            <span class="detail-value">{'Yes' if result.get('early_stopped') else 'No'}</span>
-                        </div>
-                    </div>
-                </div>
-                ''', unsafe_allow_html=True)
+                    # Analysis Details
+                    st.markdown('<h4 style="color: #1b5e20; margin: 35px 0 25px 0; font-size: 1.5em;">📊 Analysis Details</h4>', unsafe_allow_html=True)
+                    
+                    # Use Streamlit metrics for clean display
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("📄 Document", uploaded_file.name)
+                        st.metric("📑 Pages", result['pages_processed'])
+                    with col2:
+                        st.metric("🤖 AI Samples", result['samples_used'])
+                        st.metric("📝 Text Chars", f"{len(result['ocr_text']):,}")
+                    with col3:
+                        st.metric("⚡ Early Stop", 'Yes' if result.get('early_stopped') else 'No')
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
                 
                 # Vote distribution
                 st.markdown("### 🗳️ Vote Distribution")
