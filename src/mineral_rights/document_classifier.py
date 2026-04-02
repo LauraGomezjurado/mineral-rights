@@ -268,118 +268,92 @@ class OilGasRightsClassifier:
         """Create the prompt template for classification with balanced high-recall mode"""
         
         if high_recall_mode:
-            # UPDATED PROMPT: Handle broader mineral rights language that includes oil/gas
-            prompt = f"""You are a legal document analyst specializing in detecting mineral rights reservations that include oil and gas. Your goal is to identify documents that reserve mineral rights (which typically include oil and gas unless specifically excluded).
-
-UPDATED LOGIC: Mineral rights generally include oil and gas unless explicitly limited to coal only.
+            prompt = f"""You are a legal document analyst specializing in oil and gas mineral rights. Classify whether THIS document creates an ACTIVE reservation of mineral rights that includes oil and gas.
 
 DOCUMENT TEXT (from OCR):
 {ocr_text}
 
-CLASSIFICATION GUIDELINES:
+══════════════════════════════════════════════════════════
+STEP 1 — STOP AND READ CAREFULLY BEFORE ANSWERING
+══════════════════════════════════════════════════════════
 
-CRITICAL: Check these exceptions FIRST before classifying as 1. If any of these apply, classify as 0:
+Ask yourself: "Is THIS document — not a prior deed, not a referenced document — the one that creates a reservation of oil and gas rights for the grantor?"
 
-1. CONVEYANCES/GRANTS (grantor transferring rights - NOT reservations):
-   - If you see "Grantor does hereby grant, sell, convey, assign and transfer unto Grantee..." with mineral rights
-   - This is a TRANSFER where grantor gives rights away, NOT a reservation where grantor keeps them
-   - Classify as 0 even if it mentions "oil, gas, coal and other minerals"
-   - EXCEPTION: Only if there's ALSO actual reservation language elsewhere (e.g., "Grantor reserves..."), then classify based on the reservation
+If the answer is NO → classify as 0.
+If the answer is YES → classify as 1.
 
-2. "SUBJECT TO... OF RECORD" CLAUSES (acknowledging existing reservations - NOT creating new ones):
-   - If you see "Subject to... reservations... of record" or "Subject to... exceptions... of record"
-   - The phrase "of record" means it's referring to things ALREADY recorded in PRIOR deeds
-   - This is NOT creating a new reservation, just acknowledging what may exist from prior conveyances
-   - Classify as 0 if this is the ONLY reservation-related language
-   - EXCEPTION: Only if there's ALSO actual reservation language elsewhere (e.g., "Grantor reserves..."), then classify based on the actual reservation
+══════════════════════════════════════════════════════════
+STEP 2 — CLASSIFY AS 0 (NO reservation) IN THESE CASES
+══════════════════════════════════════════════════════════
 
-ONLY IF NONE OF THE ABOVE EXCEPTIONS APPLY, THEN:
+A. MINERAL CONVEYANCES (grantor is GIVING minerals away, not keeping them):
+   - "grant, sell, convey, assign and transfer... all oil, gas, coal and other minerals"
+   - "hereby conveys... all mineral rights"
+   - Verbs like grant/sell/convey/transfer/assign applied to minerals = 0
+   - Even if oil/gas are named, a conveyance is not a reservation
 
-CLASSIFY AS 1 (HAS mineral rights reservations that include oil/gas) if you find:
+B. HISTORICAL / PREDECESSOR EXCEPTIONS (prior owners already dealt with minerals):
+   - "EXCEPTING minerals heretofore conveyed, excepted or reserved by predecessors in title"
+   - "heretofore reserved" or "previously reserved" → someone ELSE already reserved this in a prior deed; this deed is just acknowledging it
+   - "The coal having been sold and the oil having been leased" → past tense, already transferred
+   - "subject to... of record" → acknowledges prior chain of title, creates nothing new
+   - Key words that signal historical references: "heretofore," "previously," "having been," "had been," "by predecessors," "as reserved in deed dated," "of record"
+   - CRITICAL: "EXCEPTING AND RESERVING minerals heretofore conveyed by predecessors" = 0. The word "heretofore" means the exception already happened in a prior deed. This deed is not creating a new reservation.
 
-EXPLICIT OIL AND GAS LANGUAGE:
-- "oil", "gas", "petroleum", "hydrocarbons", "natural gas", "crude oil"
-- "oil and gas rights", "oil and gas interests", "petroleum interests"
-- "oil and gas lease", "oil and gas royalty", "gas lease", "oil lease"
-- "hydrocarbon rights", "petroleum rights"
-- "rentals" (when associated with oil/gas/mineral reservations)
-- "royalty" or "royalties" (when associated with oil/gas/mineral reservations)
+C. COAL-ONLY RESERVATIONS (no oil/gas impact):
+   - "EXCEPTING AND RESERVING ONLY the coal"
+   - "coal seam only," "coal rights only," "all coal underlying the property" with no oil/gas mention
+   - Exception: "coal AND MINING RIGHTS reserved by [named person] in deed book [X] page [Y]" → see Rule D below
 
-GENERAL MINERAL RIGHTS LANGUAGE (includes oil/gas unless coal-only):
-- "mineral rights" (general - includes oil and gas)
-- "mining rights" (general - includes oil and gas)
-- "EXCEPTING AND RESERVING the minerals" 
-- "RESERVING unto grantors all minerals"
-- "EXCEPTING AND RESERVING coal and mining rights" (includes other minerals beyond coal)
-- "one-half of the income from any minerals" (includes oil and gas)
-- "all subsurface rights"
-- "all mineral interests"
+D. "SUBJECT TO... OF RECORD" CLAUSES:
+   - These make buyers aware of what may exist from prior deeds — they don't create new reservations
+   - Classify as 0 if this is the only reservation-related language in the document
 
-RESERVATION PATTERNS THAT INCLUDE OIL/GAS:
-- "Grantor reserves..." + any mineral language (unless coal-only)
-- "Reserves" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "Excepting and reserving" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "Excepts and reserves" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "Reserving" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "Excepting" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "There is reserved from" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "There is excepted from" + "oil," "gas," "oil and gas," "petroleum," "natural gas," "minerals," "rentals," "royalty," or "royalties"
-- "Excepting and reserving..." + mineral/mining rights
-- "Subject to mineral lease to [company]" (unless coal-only)
-- "Reserving unto grantor mineral rights"
+══════════════════════════════════════════════════════════
+STEP 3 — CLASSIFY AS 1 (HAS reservation) IN THESE CASES
+══════════════════════════════════════════════════════════
 
-CLASSIFY AS 0 (NO mineral rights reservations that include oil/gas) if:
+A. ACTIVE OIL AND GAS RESERVATIONS in the current deed:
+   - "EXCEPTING AND RESERVING unto the grantor all oil and gas"
+   - "Grantor reserves all oil and gas rights"
+   - "reserving unto grantor... oil, gas and minerals"
+   - "Excepting all minerals including oil and gas"
+   - Any clause where the CURRENT grantor keeps oil/gas for themselves
 
-CONVEYANCES/GRANTS (grantor transferring rights to another party - NOT reservations):
-- "Grantor does hereby grant, sell, convey, assign and transfer unto Grantee... all of the oil, gas, coal and other minerals"
-- "Grantor does hereby grant, sell, convey, assign and transfer unto Grantee, its successors and assigns... 100% of Grantor's right, title and interest in and to all of the oil, gas, coal and other minerals"
-- Any language where grantor is TRANSFERRING/GIVING mineral rights TO another party (grantee, buyer, etc.)
-- These are CONVEYANCES where grantor gives rights away, not RESERVATIONS where grantor keeps them
-- IMPORTANT: Classify as 0 ONLY if this conveyance language is the ONLY evidence of mineral rights. If the document ALSO contains actual reservation language (e.g., "Grantor reserves..." or "Excepting and reserving..."), then classify based on the actual reservation, not the conveyance.
-- If the ONLY mineral rights language is a conveyance (grantor giving rights away), classify as 0 because it's a transfer, not a reservation
+B. GENERAL MINERAL RESERVATIONS (which include oil/gas unless coal-only):
+   - "EXCEPTING AND RESERVING all minerals" (general minerals = includes oil/gas)
+   - "reserving all mineral interests"
+   - "reserving all subsurface rights"
+   - "one-half of the income from any minerals"
 
-"SUBJECT TO" CLAUSES (acknowledging existing reservations from prior deeds - NOT creating new reservations):
-- "Subject to all encumbrances, reservations and exceptions, including but not limited to coal, minerals, oil and gas, right of ways, easements and leases, if any, of record"
-- "Subject to... reservations... of record" - This acknowledges existing reservations from PRIOR deeds in the chain of title
-- "Subject to... exceptions... of record" - This acknowledges existing exceptions from PRIOR deeds
-- "Subject to... reservations and exceptions... of record" - This is NOT creating a new reservation, just acknowledging what may already exist
-- Key indicator: "of record" or similar language showing it refers to things already recorded in prior deeds
-- These clauses make the buyer aware of potential existing reservations but do NOT create new ones in this document
-- IMPORTANT: Classify as 0 ONLY if this "subject to... of record" language is the ONLY evidence of reservations. If the document ALSO contains actual reservation language (e.g., "Grantor reserves..." or "Excepting and reserving unto grantor..."), then classify based on the actual reservation, not the "subject to" clause.
-- If the ONLY reservation-related language is a "subject to... of record" clause, classify as 0 because this document is not reserving anything - it's just acknowledging what might exist from prior conveyances
+C. ACTIVE RESERVATIONS BY NAMED PERSON WITH DEED REFERENCE:
+   - "coal and mining rights reserved by [person's name] in deed book [X] page [Y]"
+   - A named individual + specific deed book/page = an ACTIVE, specific reservation affecting this property
+   - "coal and mining rights" (not just coal) includes subsurface access that encompasses oil and gas
+   - Classify as 1 when you see: named person + "reserved" + deed book/page reference
 
-EXPLICIT EXCLUSIONS:
-- "excepting oil and gas" or "excluding oil and gas"
-- "reserving all minerals EXCEPT oil and gas"
-- "coal rights only" or "ONLY the coal"
+D. ROYALTY/INCOME RESERVATIONS:
+   - "reserving [fraction] of all royalties from oil and gas"
+   - "grantor retains royalty interest in oil and gas production"
 
-COAL-ONLY RESERVATIONS:
-- "EXCEPTING AND RESERVING ONLY the coal"
-- "coal rights only"
-- "reserving the coal seam only"
-- Language that specifically limits reservation to coal alone
+══════════════════════════════════════════════════════════
+STEP 4 — TENSE AND DIRECTION TEST (use when unsure)
+══════════════════════════════════════════════════════════
 
-NO MINERAL RESERVATIONS:
-- Pure real estate transactions with no mineral language
-- Standard legal boilerplate without substantive mineral reservations
-- Historical references only ("subject to coal rights previously reserved")
+Before finalizing, check:
+1. DIRECTION: Is the grantor GIVING minerals away (→ 0) or KEEPING them (→ 1)?
+2. TENSE: Is the reservation being CREATED NOW in this deed (→ 1) or REFERENCING what happened before (→ 0)?
+3. SCOPE: Is it coal ONLY (→ 0) or minerals/mining rights/oil and gas (→ 1)?
 
-KEY PRINCIPLE:
-- General "mineral rights" or "minerals" = INCLUDES oil and gas (classify as 1)
-- "Coal and mining rights" = INCLUDES other minerals beyond coal (classify as 1)  
-- "ONLY coal" or "coal only" = EXCLUDES oil and gas (classify as 0)
-- No mineral language = NO reservations (classify as 0)
-
-RESPONSE FORMAT:
+══════════════════════════════════════════════════════════
+RESPONSE FORMAT
+══════════════════════════════════════════════════════════
 Answer: [0 or 1]
-Reasoning: [Explain your analysis. If you found mineral rights language, explain whether it's general (includes oil/gas) or coal-only. If classifying as 0, explain why there are no mineral reservations or why they're explicitly limited to coal only. IMPORTANT: Complete all sentences - do not end with colons or incomplete thoughts.]
-Quoted Text: [IF you classified as 1 (HAS reservations), you MUST quote the exact text from the document where the reservations are stated. Include the full sentence or clause that contains the reservation language. If you classified as 0, you can leave this blank or write "N/A". IMPORTANT: Always complete your response - finish all sentences and do not end with colons.]
+Reasoning: [Explain which Step and Rule applies. State whether the grantor is giving away or keeping minerals. State whether the language is current or historical. Complete all sentences.]
+Quoted Text: [If Answer=1, quote the exact reservation clause. If Answer=0, quote the language that confirms no active reservation exists in this deed.]
 
-Where:
-- 0 = NO mineral rights reservations that include oil and gas
-- 1 = HAS mineral rights reservations that include oil and gas
-
-Goal: Properly classify mineral rights reservations, understanding that general mineral language includes oil and gas unless specifically limited to coal only. If reservations are found, you must explicitly quote WHERE they appear in the document."""
+0 = NO active oil and gas reservation created by this deed
+1 = YES this deed creates or contains an active oil and gas reservation"""
 
         else:
             # STANDARD PROMPT (conservative) - keeping this for potential future use

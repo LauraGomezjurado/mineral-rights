@@ -29,29 +29,26 @@ import traceback
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Import the classifier
+# Import the processor (same class used by the deployed app)
 try:
-    # First try the direct import
-    from src.mineral_rights.document_classifier import OilGasRightsClassifier
-    print("✅ Successfully imported OilGasRightsClassifier")
+    from src.mineral_rights.document_classifier import DocumentProcessor
+    print("✅ Successfully imported DocumentProcessor")
 except ImportError as e1:
     print(f"❌ Direct import failed: {e1}")
     try:
-        # Try adding src to path
         sys.path.insert(0, str(project_root / "src"))
-        from mineral_rights.document_classifier import OilGasRightsClassifier
-        print("✅ Successfully imported OilGasRightsClassifier (method 2)")
+        from mineral_rights.document_classifier import DocumentProcessor
+        print("✅ Successfully imported DocumentProcessor (method 2)")
     except ImportError as e2:
         print(f"❌ Module import failed: {e2}")
         try:
-            # Try importing the file directly
             import importlib.util
             classifier_path = project_root / "src" / "mineral_rights" / "document_classifier.py"
             spec = importlib.util.spec_from_file_location("document_classifier", classifier_path)
             document_classifier = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(document_classifier)
-            OilGasRightsClassifier = document_classifier.OilGasRightsClassifier
-            print("✅ Successfully imported OilGasRightsClassifier (direct file import)")
+            DocumentProcessor = document_classifier.DocumentProcessor
+            print("✅ Successfully imported DocumentProcessor (direct file import)")
         except Exception as e3:
             print(f"❌ All import methods failed:")
             print(f"   Method 1: {e1}")
@@ -110,9 +107,10 @@ class PerformanceMetrics:
 
 class CoreClassificationTester:
     """Comprehensive testing framework for oil and gas classification"""
-    
+
     def __init__(self, api_key: str):
-        self.classifier = OilGasRightsClassifier(api_key)
+        # Use DocumentProcessor — the same class the deployed app uses
+        self.processor = DocumentProcessor(api_key=api_key)
         self.results: List[TestResult] = []
         self.start_time = datetime.now()
         
@@ -134,43 +132,46 @@ class CoreClassificationTester:
         return reservs_files, no_reservs_files
     
     def test_single_document(
-        self, 
-        pdf_path: Path, 
+        self,
+        pdf_path: Path,
         true_label: int,
-        max_samples: int = 8,
-        confidence_threshold: float = 0.80
+        max_samples: int = 6,
+        confidence_threshold: float = 0.7
     ) -> TestResult:
-        """Test classification on a single document"""
+        """Test classification on a single document using the same parameters as the deployed app."""
         start_time = time.time()
-        
+
         try:
-            result = self.classifier.process_document(
+            # Exact same call as app.py /predict endpoint
+            result = self.processor.process_document(
                 str(pdf_path),
                 max_samples=max_samples,
-                confidence_threshold=confidence_threshold
+                confidence_threshold=confidence_threshold,
+                page_strategy="first_few",
+                high_recall_mode=True,
             )
-            
+
             processing_time = time.time() - start_time
-            
+
             return TestResult(
                 filename=pdf_path.name,
                 true_label=true_label,
                 predicted_label=result['classification'],
                 confidence=result['confidence'],
                 processing_time=processing_time,
-                samples_used=len(result.get('chunk_results', [])),
+                samples_used=result.get('samples_used', 0),
                 early_stopped=result.get('early_stopped', False),
-                stopped_at_page=result.get('stopped_at_page'),
+                stopped_at_page=result.get('stopped_at_chunk'),
                 pages_processed=result.get('pages_processed', 0)
             )
-            
+
         except Exception as e:
             processing_time = time.time() - start_time
             error_msg = f"{type(e).__name__}: {str(e)}"
             return TestResult(
                 filename=pdf_path.name,
                 true_label=true_label,
-                predicted_label=-1,  # Error indicator
+                predicted_label=-1,
                 confidence=0.0,
                 processing_time=processing_time,
                 samples_used=0,
@@ -391,81 +392,158 @@ class CoreClassificationTester:
         """Save detailed results and report"""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
-        
+
         timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
-        
-        # Save detailed JSON results
+        error_count = sum(1 for r in self.results if r.error is not None)
+
         results_data = {
             "timestamp": self.start_time.isoformat(),
             "metrics": asdict(metrics),
             "detailed_results": [asdict(r) for r in self.results],
             "parameters": {
-                "focus": "High specificity for no-reservations",
-                "total_documents": len(self.results)
+                "focus": "Matches deployed app exactly",
+                "max_samples": 6,
+                "confidence_threshold": 0.7,
+                "page_strategy": "first_few",
+                "high_recall_mode": True,
+                "total_documents": len(self.results),
+                "errored_documents": error_count,
+                "complete": error_count == 0,
             }
         }
-        
+
         json_path = output_path / f"core_classification_test_{timestamp}.json"
         with open(json_path, 'w') as f:
             json.dump(results_data, f, indent=2)
-        
-        # Save human-readable report
+
         report = self.generate_detailed_report(metrics)
         report_path = output_path / f"core_classification_report_{timestamp}.txt"
         with open(report_path, 'w') as f:
             f.write(report)
-        
+
         print(f"\n💾 Results saved:")
         print(f"   • Detailed data: {json_path}")
         print(f"   • Human report:  {report_path}")
+        if error_count > 0:
+            print(f"\n⚠️  {error_count} document(s) errored — metrics are incomplete.")
+            print(f"   Top up API credits, then run:")
+            print(f"   ANTHROPIC_API_KEY=... python scripts/test_core_classification.py --resume {json_path}")
+
+        return json_path
+
+
+def resume_from(json_path: str, api_key: str):
+    """Re-run only errored documents from a previous run and merge results."""
+    with open(json_path) as f:
+        previous = json.load(f)
+
+    prior_results = previous["detailed_results"]
+    errored = [r for r in prior_results if r.get("error") is not None]
+    good    = [r for r in prior_results if r.get("error") is None]
+
+    if not errored:
+        print("✅ No errored documents in that run — nothing to resume.")
+        return
+
+    print(f"🔁 RESUME MODE — re-running {len(errored)} errored document(s)")
+    print(f"   Keeping {len(good)} already-good result(s) from previous run.")
+    print()
+
+    tester = CoreClassificationTester(api_key)
+
+    for entry in errored:
+        filename  = entry["filename"]
+        true_label = entry["true_label"]
+        # Locate the file in the dataset
+        candidates = list(project_root.rglob(filename))
+        if not candidates:
+            print(f"   ⚠️  File not found on disk: {filename} — skipping")
+            # Keep the error record so the count stays accurate
+            from dataclasses import fields as dc_fields
+            tester.results.append(TestResult(**{k: entry[k] for k in entry}))
+            continue
+
+        pdf_path = candidates[0]
+        print(f"   Re-running: {filename}", end=" ... ")
+        result = tester.test_single_document(pdf_path, true_label=true_label)
+        tester.results.append(result)
+        if result.error:
+            print(f"❌ STILL ERRORING: {result.error[:80]}")
+        else:
+            status = "✅ CORRECT" if result.predicted_label == result.true_label else "❌ WRONG"
+            print(f"{status} (conf: {result.confidence:.3f})")
+
+    # Merge with the good results from the previous run
+    for entry in good:
+        tester.results.append(TestResult(**{k: entry[k] for k in entry}))
+
+    # Recompute metrics over all 90 documents
+    remaining_errors = sum(1 for r in tester.results if r.error is not None)
+    if remaining_errors > 0:
+        print(f"\n⚠️  {remaining_errors} document(s) still erroring — metrics still incomplete.")
+    else:
+        print(f"\n✅ All documents resolved — computing final metrics on full dataset.")
+
+    metrics = tester.calculate_metrics()
+    print(f"\n{tester.generate_detailed_report(metrics)}")
+    tester.save_results(metrics)
+
+    print(f"\n🏆 FINAL SUMMARY ({len(tester.results)} documents):")
+    print(f"   Accuracy:          {metrics.accuracy:.1%}")
+    print(f"   Specificity (TNR): {metrics.specificity:.1%}")
+    print(f"   False Positives:   {metrics.false_positives}")
+    print(f"   False Negatives:   {metrics.false_negatives}")
 
 
 def main():
     """Main test execution"""
-    # Get API key
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--resume", metavar="JSON_FILE",
+                        help="Path to a previous results JSON — re-run only errored docs and merge")
+    args = parser.parse_args()
+
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
         print("❌ Please set ANTHROPIC_API_KEY environment variable")
         return
-    
+
     try:
+        if args.resume:
+            resume_from(args.resume, api_key)
+            return
+
         print("🧪 CORE CLASSIFICATION TESTING SUITE")
         print("=" * 50)
         print("🎯 PRIORITY: High specificity for no-reservations")
         print("📊 Testing entire dataset for comprehensive evaluation")
         print(f"📁 Project root: {project_root}")
         print()
-        
-        # Initialize tester
+
         tester = CoreClassificationTester(api_key)
-        
-        # Run full evaluation
+
         metrics = tester.run_full_evaluation(
-            max_samples=8,           # Robust sampling
-            confidence_threshold=0.80,  # Conservative threshold
+            max_samples=6,
+            confidence_threshold=0.7,
             verbose=True
         )
-        
-        # Display results
+
         print(f"\n{tester.generate_detailed_report(metrics)}")
-        
-        # Save results
-        tester.save_results(metrics)
-        
-        # Quick summary for immediate feedback
+        json_path = tester.save_results(metrics)
+
         print(f"\n🏆 QUICK SUMMARY:")
-        print(f"   Accuracy: {metrics.accuracy:.1%}")
-        print(f"   Specificity (key): {metrics.specificity:.1%}")
-        print(f"   False Positives: {metrics.false_positives} documents")
-        print(f"   Processing Time: {metrics.total_processing_time:.1f}s")
-        
+        print(f"   Accuracy:          {metrics.accuracy:.1%}")
+        print(f"   Specificity (TNR): {metrics.specificity:.1%}")
+        print(f"   False Positives:   {metrics.false_positives} documents")
+        print(f"   Processing Time:   {metrics.total_processing_time:.1f}s")
+
         if metrics.specificity >= 0.95 and metrics.accuracy >= 0.90:
             print(f"\n✅ CORE CLASSIFICATION ABILITY: EXCELLENT")
         elif metrics.specificity >= 0.90:
             print(f"\n⚠️  CORE CLASSIFICATION ABILITY: GOOD (room for improvement)")
         else:
             print(f"\n❌ CORE CLASSIFICATION ABILITY: NEEDS ATTENTION")
-            
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
         traceback.print_exc()
