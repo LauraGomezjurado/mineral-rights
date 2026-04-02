@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE = process.env.BACKEND_API_URL || 'https://mineral-rights-api-1081023230228.us-central1.run.app';
+const API_BASE = process.env.BACKEND_API_URL || 'https://mineral-rights-processor-1081023230228.us-central1.run.app';
 
 // Validate environment
 console.log('🔍 BACKEND_API_URL:', process.env.BACKEND_API_URL);
