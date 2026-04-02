@@ -1533,15 +1533,34 @@ class DocumentProcessor:
                     'confidence_score': last_chunk.get('confidence', 0.0),
                     'features': {}
                 }]
-        else:                          # every page failed OCR
-            final_result = {
-                'classification': 0,
-                'confidence': 0.0,
-                'votes': {0: 0.0, 1: 0.0},
-                'samples_used': 0,
-                'early_stopped': False
-            }
-            detailed_samples_list = []
+        else:                          # every page failed OCR / LLM
+            # Collect error details from failed pages for a clear message
+            failed_details = [
+                f"page {c['page_number']}: {c.get('error', 'unknown error')[:120]}"
+                for c in chunk_analysis
+                if c.get('status') == 'ocr_failed'
+            ]
+            summary = "; ".join(failed_details[:3]) or "no details captured"
+            summary_lower = summary.lower()
+
+            if "401" in summary or "authentication" in summary_lower or "invalid x-api-key" in summary_lower:
+                raise RuntimeError(
+                    f"API_KEY_ERROR: The Anthropic API key is invalid or expired. "
+                    f"No classification was returned. Please update the API key. "
+                    f"(detail: {summary[:200]})"
+                )
+            elif "404" in summary or "not_found" in summary_lower or "not found" in summary_lower:
+                raise RuntimeError(
+                    f"MODEL_NOT_FOUND: The model name '{self.classifier.model_name}' was not found or has been deprecated. "
+                    f"No classification was returned. Please update the model name. "
+                    f"(detail: {summary[:200]})"
+                )
+            else:
+                raise RuntimeError(
+                    f"MODEL_UNAVAILABLE: The AI model did not respond on any of the {pages_to_process} page(s). "
+                    f"No classification was returned. "
+                    f"(detail: {summary[:200]})"
+                )
         
         return {
             'document_path': pdf_path,

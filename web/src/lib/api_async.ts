@@ -65,7 +65,18 @@ async function robustFetch(url: string, options: RequestInit = {}): Promise<Resp
             isDirectBackend: cacheBustUrl.includes('mineral-rights-api-1081023230228.us-central1.run.app')
           };
           
-          if (response.status === 504) {
+          if (response.status === 503) {
+            // Model not responding (bad/expired API key, deprecated model name).
+            // Don't retry — read the detail message and surface it immediately.
+            let detail = `The AI model did not respond. This may mean the API key is invalid or expired.`;
+            try {
+              const body = await response.json();
+              detail = body.detail || body.message || detail;
+            } catch { /* ignore parse errors */ }
+            const tag = detail.includes('MODEL_NOT_FOUND') ? '🚫 MODEL DEPRECATED' : '🚫 API KEY ERROR';
+            console.error(`${tag} (503): ${detail}`, errorDetails);
+            throw new Error(detail);  // propagates full detail; no retry
+          } else if (response.status === 504) {
             if (cacheBustUrl.includes('/api/')) {
               console.error(`🚫 VERCEL PROXY TIMEOUT (504): The Vercel proxy is timing out. This usually means the backend is busy processing a large PDF.`, errorDetails);
             } else {
@@ -76,7 +87,7 @@ async function robustFetch(url: string, options: RequestInit = {}): Promise<Resp
           } else {
             console.warn(`⚠️ Fetch failed with status ${response.status}: ${response.statusText}`, errorDetails);
           }
-          
+
           if (attempt === maxRetries) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }

@@ -249,9 +249,23 @@ export default function Home() {
           errorMessage.includes('Invalid model')
         );
         
-        // Check if it's an API error response
-        if (errorMessage.includes('LLM processing failed') || errorMessage.includes('API key')) {
-          errorMessage = `API Error: ${errorMessage}. Please check your API key configuration.`;
+        // Check if it's an API key error (expired / invalid key)
+        const isApiKeyError =
+          errorMessage.includes('API_KEY_ERROR') ||
+          errorMessage.includes('API key') ||
+          errorMessage.includes('LLM processing failed');
+
+        // Check if it's a deprecated / renamed model error
+        const isDeprecatedModel =
+          errorMessage.includes('MODEL_NOT_FOUND') ||
+          errorMessage.includes('has been deprecated') ||
+          isModelError;
+
+        if (isApiKeyError) {
+          errorMessage = `⚠️ API key invalid or expired — please update the Anthropic API key on the server. No result was returned to avoid incorrect data. (${errorMessage})`;
+        } else if (isDeprecatedModel) {
+          errorMessage = `⚠️ Model not found or deprecated — please update the model name. No result was returned to avoid incorrect data. (${errorMessage})`;
+          setTimeout(() => setShowModelManager(true), 500);
         } else if (isModelError) {
           errorMessage = `Model Error: ${errorMessage}. The model may not be available. Try updating the model name.`;
         }

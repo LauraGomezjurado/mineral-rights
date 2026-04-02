@@ -225,19 +225,26 @@ async def predict(
                 print(f"🔍 detailed_samples length: {len(detailed_samples)}")
                 print(f"🔍 samples_used: {samples_used}")
                 
-                # VALIDATION: Check if LLM calls actually succeeded
+                # VALIDATION: Only return a result when the model actually responded.
+                # Never return a silent default — that would cause false negatives.
                 if samples_used == 0 or len(detailed_samples) == 0:
-                    error_msg = (
-                        f"LLM processing failed - no samples were generated. "
-                        f"This may indicate an API key issue, API error, or OCR failure. "
-                        f"Please check server logs for details. "
-                        f"(samples_used: {samples_used}, detailed_samples: {len(detailed_samples)})"
-                    )
-                    print(f"❌ {error_msg}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=error_msg
-                    )
+                    ocr_failed_pages = result.get("ocr_failed_pages", [])
+                    total_pages = result.get("total_pages_in_document", 0)
+                    if ocr_failed_pages:
+                        user_msg = (
+                            f"The AI model did not respond for any of the {total_pages} page(s) in this document. "
+                            "This usually means the Anthropic API key is invalid or expired. "
+                            "Please update the API key and try again. "
+                            "No classification was returned to avoid incorrect silent results."
+                        )
+                    else:
+                        user_msg = (
+                            "The AI model was called but returned no usable samples. "
+                            "This may indicate a transient API error or an unsupported model name. "
+                            "Please retry. If this persists, check the server logs and API key."
+                        )
+                    print(f"❌ MODEL NOT RESPONDING — {user_msg}")
+                    raise HTTPException(status_code=503, detail=user_msg)
                 
                 if detailed_samples:
                     print(f"🔍 First sample keys: {list(detailed_samples[0].keys()) if detailed_samples[0] else 'EMPTY'}")
@@ -347,6 +354,11 @@ async def predict(
     except HTTPException:
         # Re-raise HTTPExceptions (like our LLM failure errors)
         raise
+    except RuntimeError as e:
+        # RuntimeErrors from the classifier (e.g. all pages failed OCR/LLM) — 503 with clear message
+        msg = str(e)
+        print(f"❌ MODEL NOT RESPONDING — {msg}")
+        raise HTTPException(status_code=503, detail=msg)
     except Exception as e:
         print(f"❌ Failed to process document: {e}")
         import traceback
