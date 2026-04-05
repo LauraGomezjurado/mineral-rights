@@ -75,6 +75,9 @@ class TestResult:
     stopped_at_page: Optional[int]
     pages_processed: int
     error: Optional[str] = None
+    # Reasoning from first sample on the deciding page (for diagnosis)
+    model_reasoning: Optional[str] = None
+    ocr_text_preview: Optional[str] = None
 
 
 @dataclass
@@ -153,6 +156,24 @@ class CoreClassificationTester:
 
             processing_time = time.time() - start_time
 
+            # Pull reasoning + OCR from the deciding page's first sample
+            reasoning = None
+            ocr_preview = None
+            chunk_analysis = result.get('chunk_analysis', [])
+            detailed_samples = result.get('detailed_samples', [])
+            if detailed_samples:
+                s = detailed_samples[0]
+                reasoning = s.get('raw_response') or s.get('reasoning')
+            elif chunk_analysis:
+                # Fallback: grab from chunk_analysis if detailed_samples not populated
+                for chunk in chunk_analysis:
+                    if chunk.get('samples'):
+                        reasoning = chunk['samples'][0].get('reasoning')
+                        break
+            ocr_text = result.get('ocr_text', '')
+            if ocr_text:
+                ocr_preview = ocr_text[:800]
+
             return TestResult(
                 filename=pdf_path.name,
                 true_label=true_label,
@@ -162,7 +183,9 @@ class CoreClassificationTester:
                 samples_used=result.get('samples_used', 0),
                 early_stopped=result.get('early_stopped', False),
                 stopped_at_page=result.get('stopped_at_chunk'),
-                pages_processed=result.get('pages_processed', 0)
+                pages_processed=result.get('pages_processed', 0),
+                model_reasoning=reasoning,
+                ocr_text_preview=ocr_preview,
             )
 
         except Exception as e:
@@ -495,12 +518,76 @@ def resume_from(json_path: str, api_key: str):
     print(f"   False Negatives:   {metrics.false_negatives}")
 
 
+def diagnose_failures(json_path: str, api_key: str):
+    """Re-run only misclassified docs and print full model reasoning for diagnosis."""
+    with open(json_path) as f:
+        previous = json.load(f)
+
+    prior_results = previous["detailed_results"]
+    misclassified = [
+        r for r in prior_results
+        if r.get('error') is None
+        and r['true_label'] != r['predicted_label']
+    ]
+
+    if not misclassified:
+        print("✅ No misclassified documents in that file.")
+        return
+
+    fps = [r for r in misclassified if r['true_label'] == 0]
+    fns = [r for r in misclassified if r['true_label'] == 1]
+    print(f"🔬 DIAGNOSE MODE — re-running {len(misclassified)} misclassified docs")
+    print(f"   {len(fps)} false positives + {len(fns)} false negatives")
+    print()
+
+    tester = CoreClassificationTester(api_key)
+
+    for entry in misclassified:
+        filename = entry['filename']
+        true_label = entry['true_label']
+        label_str = "NO-RESERV (should be 0)" if true_label == 0 else "HAS-RESERV (should be 1)"
+        error_type = "FALSE POSITIVE" if true_label == 0 else "FALSE NEGATIVE"
+
+        candidates = list(project_root.rglob(filename))
+        if not candidates:
+            print(f"⚠️  {filename}: not found on disk — skipping")
+            continue
+
+        pdf_path = candidates[0]
+        print(f"\n{'='*70}")
+        print(f"🔬 [{error_type}] {filename}")
+        print(f"   True label: {label_str}")
+        print(f"   Running...", flush=True)
+
+        result = tester.test_single_document(pdf_path, true_label=true_label)
+
+        outcome = "✅ NOW CORRECT" if result.predicted_label == true_label else "❌ STILL WRONG"
+        print(f"   {outcome} — predicted={result.predicted_label}, conf={result.confidence:.3f}")
+        print()
+
+        if result.ocr_text_preview:
+            print(f"📄 OCR TEXT (first 800 chars):")
+            print(result.ocr_text_preview)
+            print()
+
+        if result.model_reasoning:
+            print(f"🤖 MODEL REASONING:")
+            print(result.model_reasoning[:1500])
+        else:
+            print("⚠️  No reasoning captured (check detailed_samples in result)")
+
+    print(f"\n{'='*70}")
+    print("🔬 Diagnose run complete. Use findings to refine the prompt.")
+
+
 def main():
     """Main test execution"""
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--resume", metavar="JSON_FILE",
                         help="Path to a previous results JSON — re-run only errored docs and merge")
+    parser.add_argument("--diagnose", metavar="JSON_FILE",
+                        help="Re-run only misclassified docs from a results JSON and print full reasoning")
     args = parser.parse_args()
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -511,6 +598,10 @@ def main():
     try:
         if args.resume:
             resume_from(args.resume, api_key)
+            return
+
+        if args.diagnose:
+            diagnose_failures(args.diagnose, api_key)
             return
 
         print("🧪 CORE CLASSIFICATION TESTING SUITE")

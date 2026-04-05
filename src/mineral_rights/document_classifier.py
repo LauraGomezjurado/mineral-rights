@@ -292,13 +292,18 @@ A. MINERAL CONVEYANCES (grantor is GIVING minerals away, not keeping them):
    - Verbs like grant/sell/convey/transfer/assign applied to minerals = 0
    - Even if oil/gas are named, a conveyance is not a reservation
 
-B. HISTORICAL / PREDECESSOR EXCEPTIONS (prior owners already dealt with minerals):
-   - "EXCEPTING minerals heretofore conveyed, excepted or reserved by predecessors in title"
-   - "heretofore reserved" or "previously reserved" → someone ELSE already reserved this in a prior deed; this deed is just acknowledging it
-   - "The coal having been sold and the oil having been leased" → past tense, already transferred
-   - "subject to... of record" → acknowledges prior chain of title, creates nothing new
-   - Key words that signal historical references: "heretofore," "previously," "having been," "had been," "by predecessors," "as reserved in deed dated," "of record"
-   - CRITICAL: "EXCEPTING AND RESERVING minerals heretofore conveyed by predecessors" = 0. The word "heretofore" means the exception already happened in a prior deed. This deed is not creating a new reservation.
+B. HISTORICAL / PREDECESSOR EXCEPTIONS (prior owners already TRANSFERRED minerals away — gone):
+   - "EXCEPTING minerals heretofore conveyed, excepted or reserved by predecessors in title" → 0
+     (minerals were transferred out by prior owners, no longer part of the property)
+   - "The coal having been sold and the oil having been leased" → past tense transfer, 0
+   - "subject to... of record" → acknowledges prior chain of title, creates nothing new, 0
+   - Key phrases: "heretofore CONVEYED/SOLD/TRANSFERRED by predecessors," "having been sold," "previously conveyed"
+
+   ⚠️ CRITICAL DISTINCTION — "heretofore reserved TO [person]" is NOT the same as "heretofore conveyed":
+   - "as heretofore reserved TO Vivian J. Guess" → the minerals BELONG TO Vivian Guess, she still owns them → classify as 1
+   - "heretofore conveyed BY predecessors" → minerals were sold/given away, gone from the property → classify as 0
+   - Rule: "heretofore reserved TO [named person]" = the reservation IS active and still applies → 1
+   - Rule: "heretofore conveyed/sold BY predecessors" = minerals are gone → 0
 
 C. COAL-ONLY RESERVATIONS (no oil/gas impact):
    - "EXCEPTING AND RESERVING ONLY the coal"
